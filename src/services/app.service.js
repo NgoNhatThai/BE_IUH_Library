@@ -1,4 +1,4 @@
-import db from '../config/sql/models/index.model'
+import db from '../config/nosql/models/user.model'
 import customizeUser, { hashPassword } from '../ultils/customizeUser'
 import handleJwt from '../ultils/handleJwt'
 import { v4 as uuidv4 } from 'uuid'
@@ -7,6 +7,7 @@ const host = process.env.BACKEND_URL
 
 import fs from 'fs'
 import path from 'path'
+import User from '../config/nosql/models/user.model'
 
 const boxes_path = path.resolve('public/data', 'backgroundUser.json')
 const rawdata = fs.readFileSync(boxes_path)
@@ -18,39 +19,33 @@ require('dotenv').config()
 const secret = process.env.SECRET
 const expiresIn = process.env.EXPIRESD_IN
 
-const register = async ({ userName, phoneNumber, password: plainPassword }) => {
+const register = async ({ userName, studentCode, password: plainPassword }) => {
   try {
     // check user exists;
-    let userExists = await db.User.findOne({
+    let userExists = await User.findOne({
       where: {
-        phoneNumber,
+        studentCode,
       },
     })
     if (userExists)
       return {
         errCode: 4,
-        message: 'User is exists, Please use new another phone',
+        message: 'Users student code is exists, Please use new another phone',
       }
     //create new user;
-    const avatarRandom = random_bg_color()
+    const avatar = random_bg_color()
     let refresh_token = uuidv4()
     let password = hashPassword(plainPassword)
-    const user = await db.User.create({
+    const user = new User({
       userName,
-      phoneNumber,
+      studentCode,
       password,
       refresh_token,
-      avatar: Buffer.from(avatarRandom, 'utf-8'),
-      lastedOnline: new Date(),
-      peerId: uuidv4(),
+      avatar: Buffer.from(avatar, 'utf-8'),
     })
-    // create profile user
-    const profile = await db.ProfileContact.create({
-      userId: user.id,
-      coverImage: host + data[random]?.url + '',
-    })
-    if (user && profile) {
-      let userAfterCustomize = customizeUser.standardUser(user.dataValues)
+    await user.save()
+    if (user) {
+      let userAfterCustomize = customizeUser.standardUser(user)
       return {
         errCode: 0,
         message: 'Created',
@@ -67,29 +62,23 @@ const register = async ({ userName, phoneNumber, password: plainPassword }) => {
   }
 }
 
-const verifyUser = async (id, phoneNumber) => {
+const verifyUser = async (studentCode) => {
   try {
-    const userRaw = await db.User.findOne({
-      where: {
-        id: id,
-        phoneNumber: phoneNumber,
-      },
-      raw: false,
+    const userRaw = await User.findOne({
+      studentCode: studentCode,
     })
-    let user = customizeUser.standardUser(userRaw?.dataValues)
-    if (Object.keys(user).length !== 0) {
-      const deletedAvatar = { ...user }
-      delete deletedAvatar.avatar
-      let access_token = handleJwt.signJwt(deletedAvatar, secret, expiresIn)
+    // let user = customizeUser.standardUser(userRaw)
+    if (Object.keys(userRaw).length !== 0) {
+      delete userRaw.avatar
+      let access_token = handleJwt.signJwt(userRaw, secret, expiresIn)
       let refresh_token = uuidv4()
       userRaw.refresh_token = refresh_token
-      userRaw.lastedOnline = null
       await userRaw.save()
       return {
         errCode: 0,
         message: 'Verify user success',
         data: {
-          user,
+          userRaw,
           access_token: access_token,
           refresh_token: refresh_token,
         },

@@ -3,13 +3,19 @@ const { Schema } = mongoose
 
 const UserModel = Schema(
   {
-    _id: Schema.Types.ObjectId,
     userName: {
       type: String,
       required: true,
     },
+    avatar: String,
+    studentCode: {
+      type: Number,
+      unique: true,
+      required: true,
+    },
     birthDate: Date,
-    email: {
+    email: String,
+    password: {
       type: String,
       required: true,
     },
@@ -17,13 +23,15 @@ const UserModel = Schema(
     majorId: Schema.Types.ObjectId,
     memberShip: {
       type: String,
-      required: true,
+      default: 'NORMAL',
       enum: ['NORMAL', 'VIP'],
     },
     totalSpend: Number,
+    refresh_token: String,
+    access_token: String,
     status: {
       type: String,
-      required: true,
+      default: 'ACTIVE',
       enum: ['ACTIVE', 'INACTIVE'],
     },
   },
