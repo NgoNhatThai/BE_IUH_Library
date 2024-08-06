@@ -3,7 +3,6 @@ const { Schema } = mongoose
 
 const BookModel = Schema(
   {
-    _id: Schema.Types.ObjectId,
     title: String,
     categoryId: Schema.Types.ObjectId,
     authorId: Schema.Types.ObjectId,
@@ -11,7 +10,6 @@ const BookModel = Schema(
     content: {
       type: Schema.Types.ObjectId,
       ref: 'Content',
-      require: false,
     },
     limit: String,
     image: String,
@@ -22,7 +20,7 @@ const BookModel = Schema(
     price: Number,
     status: {
       type: String,
-      required: true,
+      default: 'PUBLISH',
       enum: ['PUBLISH', 'UNPUBLISH'],
     },
   },

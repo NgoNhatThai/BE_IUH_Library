@@ -67,7 +67,6 @@ const verifyUser = async (studentCode) => {
     const userRaw = await User.findOne({
       studentCode: studentCode,
     })
-    // let user = customizeUser.standardUser(userRaw)
     if (Object.keys(userRaw).length !== 0) {
       delete userRaw.avatar
       let access_token = handleJwt.signJwt(userRaw, secret, expiresIn)
