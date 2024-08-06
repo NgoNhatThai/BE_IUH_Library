@@ -1,11 +1,12 @@
 import mongoose from 'mongoose'
 import bookService from '../services/book.service.js'
-// warning using
 const create = async (req, res) => {
   try {
-    const book = req.body
+    const book = {
+      ...req.body,
+      image: req.file.path, // Đường dẫn đến file hình ảnh tạm thời
+    }
     const data = await bookService.create(book)
-    console.log(data)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)

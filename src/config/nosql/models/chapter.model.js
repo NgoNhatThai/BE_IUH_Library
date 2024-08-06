@@ -5,7 +5,7 @@ const ChapterModel = Schema(
   {
     _id: Schema.Types.ObjectId,
     contentId: Schema.Types.ObjectId,
-    text: String,
+    text: [String],
     images: [String],
     postDate: Date,
     updateDate: Date,

@@ -4,10 +4,9 @@ const Chapter = require('./chapter.model')
 
 const ContentModel = Schema(
   {
-    _id: Schema.Types.ObjectId,
     bookId: Schema.Types.ObjectId,
     numberOfChapter: Number,
-    chapters: [String],
+    chapters: [{ type: Schema.Types.ObjectId, ref: 'Chapter' }],
   },
   {
     timestamps: true,
