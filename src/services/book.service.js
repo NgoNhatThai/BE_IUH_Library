@@ -1,9 +1,32 @@
+import cloudinary from '../config/cloudinary'
 import Book from '../config/nosql/models/book.model'
+import Content from '../config/nosql/models/content.model'
+import Chapter from '../config/nosql/models/chapter.model'
 
 const create = async (book) => {
   try {
-    const data = await Book.create(book)
-    console.log(data)
+    if (!book.title || !book.image) {
+      return {
+        status: 400,
+        message: 'Missing required fields',
+      }
+    }
+    const imagePath = await cloudinary.uploader.upload(book.image, {
+      public_id: book.title,
+    })
+    const content = new Content({
+      bookId: book._id,
+      numberOfChapter: 0,
+      chapters: [],
+    })
+    const contentData = await Content.create(content)
+    const bookData = new Book({
+      ...book,
+      content: contentData._id,
+      image: imagePath.secure_url,
+      createDate: new Date(),
+    })
+    const data = await Book.create(bookData)
     return {
       status: 200,
       message: 'Create book success',
@@ -16,74 +39,7 @@ const create = async (book) => {
     }
   }
 }
-// const create = async (req, res) => {
-//   try {
-//     const book = req.body
-//     const data = await bookService.create(book)
-//     console.log(data)
-//     res.status(200).json(data)
-//   } catch (error) {
-//     res.status(500).send(error.message)
-//   }
-// }
-// const update = async (req, res) => {
-//   try {
-//     const book = req.body
-//     const data = await bookService.update(book)
-//     res.status(200).json(data)
-//   } catch (error) {
-//     res.status(500).send(error.message)
-//   }
-// }
-// const remove = async (req, res) => {
-//   try {
-//     const id = req.params.id
-//     const book = await bookService.findOne(id)
-//     if (!book) {
-//       res.status(404).send('Book not found')
-//       return
-//     }
-//     book.status = 'INACTIVE'
-//     const data = await bookService.update(book)
-//     res.status(200).json(data)
-//   } catch (error) {
-//     res.status(500).send(error.message)
-//   }
-// }
-// const addChapter = async (req, res) => {
-//   try {
-//     const { id } = req.params
-//     const { chapter } = req.body
-//     const book = await bookService.findOne(id)
-//     if (!book) {
-//       res.status(404).send('Book not found')
-//       return
-//     }
-//     book.chapters.push(chapter)
-//     const data = await bookService.update(book)
-//     res.status(200).json(data)
-//   } catch (error) {
-//     res.status(500).send(error.message)
-//   }
-// }
-// const getBookById = async (req, res) => {
-//   try {
-//     const id = req.params.id
-//     const data = await bookService.findOne(id)
-//     res.status(200).json(data)
-//   } catch (error) {
-//     res.status(500).send(error.message)
-//   }
-// }
-// const searchBook = async (req, res) => {
-//   try {
-//     const { params } = req.query
-//     const data = await bookService.search(...params)
-//     res.status(200).json(data)
-//   } catch (error) {
-//     res.status(500).send(error.message)
-//   }
-// }
+
 const update = async (book) => {
   try {
     const data = await Book.update(book)
@@ -131,7 +87,12 @@ const addChapter = async (id, chapter) => {
         message: 'Book not found',
       }
     }
-    book.chapters.push(chapter)
+    const chap = new Chapter({
+      ...chapter,
+      bookId: id,
+    })
+    const chapterData = await Chapter.create(chap)
+    book.chapters.push(chapterData._id)
     const data = await Book.update(book)
     return {
       status: 200,
@@ -147,7 +108,7 @@ const addChapter = async (id, chapter) => {
 }
 const getBookById = async (id) => {
   try {
-    const data = await Book.findOne(id)
+    const data = await Book.findById(id).populate('content')
     return {
       status: 200,
       message: 'Get book by id success',
@@ -160,13 +121,38 @@ const getBookById = async (id) => {
     }
   }
 }
-const searchBook = async (params) => {
+const search = async (params) => {
+  console.log(params)
   try {
-    const data = await Book.search(params)
+    const query = {}
+
+    if (params.title) {
+      query.title = { $regex: params.title, $options: 'i' }
+    }
+
+    if (params.categoryId) {
+      query.categoryId = params.categoryId
+    }
+
+    if (params.authorId) {
+      query.authorId = params.authorId
+    }
+
+    const books = await Book.find(query)
+      .skip(params.pageIndex * params.pageSize)
+      .limit(params.pageSize)
+
+    const totalBooks = await Book.countDocuments(query)
+
     return {
       status: 200,
       message: 'Search book success',
-      data: data,
+      data: {
+        total: totalBooks,
+        pageIndex: params.pageIndex,
+        pageSize: params.pageSize,
+        data: books,
+      },
     }
   } catch (error) {
     return {
@@ -182,5 +168,5 @@ module.exports = {
   remove,
   addChapter,
   getBookById,
-  searchBook,
+  search,
 }
