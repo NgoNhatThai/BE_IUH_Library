@@ -4,7 +4,7 @@ const create = async (req, res) => {
   try {
     const book = {
       ...req.body,
-      image: req.file.path, // Đường dẫn đến file hình ảnh tạm thời
+      image: req.file.path,
     }
     const data = await bookService.create(book)
     res.status(200).json(data)
@@ -24,7 +24,7 @@ const update = async (req, res) => {
 const remove = async (req, res) => {
   try {
     const id = req.params.id
-    const book = await bookService.findOne(id)
+    const book = await bookService.getBookById(id)
     if (!book) {
       res.status(404).send('Book not found')
       return
@@ -40,7 +40,7 @@ const addChapter = async (req, res) => {
   try {
     const { id } = req.params
     const { chapter } = req.body
-    const book = await bookService.findOne(id)
+    const book = await bookService.getBookById(id)
     if (!book) {
       res.status(404).send('Book not found')
       return
@@ -55,16 +55,23 @@ const addChapter = async (req, res) => {
 const getBookById = async (req, res) => {
   try {
     const id = req.params.id
-    const data = await bookService.findOne(id)
+    const data = await bookService.getBookById(id)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
   }
 }
-const searchBook = async (req, res) => {
+const search = async (req, res) => {
   try {
-    const { params } = req.query
-    const data = await bookService.search(...params)
+    const params = req.body
+    if (!params) {
+      res.status(400).send('Bad request')
+      return {
+        status: 400,
+        message: 'Missing params',
+      }
+    }
+    const data = await bookService.search(params)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
@@ -77,5 +84,5 @@ module.exports = {
   remove,
   addChapter,
   getBookById,
-  searchBook,
+  search,
 }

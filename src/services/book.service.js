@@ -108,7 +108,7 @@ const addChapter = async (id, chapter) => {
 }
 const getBookById = async (id) => {
   try {
-    const data = await Book.findOne(id)
+    const data = await Book.findById(id).populate('content')
     return {
       status: 200,
       message: 'Get book by id success',
@@ -121,13 +121,38 @@ const getBookById = async (id) => {
     }
   }
 }
-const searchBook = async (params) => {
+const search = async (params) => {
+  console.log(params)
   try {
-    const data = await Book.search(params)
+    const query = {}
+
+    if (params.title) {
+      query.title = { $regex: params.title, $options: 'i' }
+    }
+
+    if (params.categoryId) {
+      query.categoryId = params.categoryId
+    }
+
+    if (params.authorId) {
+      query.authorId = params.authorId
+    }
+
+    const books = await Book.find(query)
+      .skip(params.pageIndex * params.pageSize)
+      .limit(params.pageSize)
+
+    const totalBooks = await Book.countDocuments(query)
+
     return {
       status: 200,
       message: 'Search book success',
-      data: data,
+      data: {
+        total: totalBooks,
+        pageIndex: params.pageIndex,
+        pageSize: params.pageSize,
+        data: books,
+      },
     }
   } catch (error) {
     return {
@@ -143,5 +168,5 @@ module.exports = {
   remove,
   addChapter,
   getBookById,
-  searchBook,
+  search,
 }

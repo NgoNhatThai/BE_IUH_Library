@@ -16,7 +16,7 @@ const InitRoutesBook = (router) => {
   router.route('/remove/:id').delete(bookController.remove)
   router.route('/add-chapter/:id').put(bookController.addChapter)
   router.route('/get-book-by-id/:id').get(bookController.getBookById)
-  router.route('/search').get(bookController.searchBook)
+  router.route('/search').get(bookController.search)
 
   return router
 }
