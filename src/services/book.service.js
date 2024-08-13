@@ -2,6 +2,12 @@ import cloudinary from '../config/cloudinary'
 import Book from '../config/nosql/models/book.model'
 import Content from '../config/nosql/models/content.model'
 import Chapter from '../config/nosql/models/chapter.model'
+import fs from 'fs'
+import path from 'path'
+import { PDFDocument } from 'pdf-lib'
+import pdfParse from 'pdf-parse'
+import pdfPoppler from 'pdf-poppler'
+import { exec } from 'child_process'
 
 const create = async (book) => {
   try {
@@ -11,6 +17,8 @@ const create = async (book) => {
         message: 'Missing required fields',
       }
     }
+
+    const localImagePath = path.join('uploads/', path.basename(book.image))
     const imagePath = await cloudinary.uploader.upload(book.image, {
       public_id: book.title,
     })
@@ -27,6 +35,9 @@ const create = async (book) => {
       createDate: new Date(),
     })
     const data = await Book.create(bookData)
+
+    fs.unlinkSync(localImagePath)
+
     return {
       status: 200,
       message: 'Create book success',
@@ -78,28 +89,73 @@ const remove = async (id) => {
     }
   }
 }
-const addChapter = async (id, chapter) => {
-  try {
-    const book = await Book.findOne(id)
-    if (!book) {
-      return {
-        status: 404,
-        message: 'Book not found',
+const uploadToCloudinary = async (filePath, resourceType = 'image') => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(
+      filePath,
+      { resource_type: resourceType },
+      (error, result) => {
+        if (error) {
+          reject(error)
+        } else {
+          resolve(result.secure_url)
+        }
       }
+    )
+  })
+}
+
+const addChapter = async (chapter) => {
+  try {
+    const content = await Content.findById(chapter.contentId)
+    if (!chapter.title) {
+      chapter.title = `Chapter ${
+        (content.numberOfChapter ? content.numberOfChapter : 0) + 1
+      }`
     }
-    const chap = new Chapter({
-      ...chapter,
-      bookId: id,
-    })
-    const chapterData = await Chapter.create(chap)
-    book.chapters.push(chapterData._id)
-    const data = await Book.update(book)
+
+    const pdfFilePath = path.join('uploads', path.basename(chapter.file.path))
+
+    const pdfData = fs.readFileSync(pdfFilePath)
+
+    const pdfDoc = await PDFDocument.load(pdfData)
+    const numPages = pdfDoc.getPages().length
+
+    let imagePaths = []
+    let textPaths = []
+
+    const options = {
+      format: 'png',
+      out_dir: path.dirname(pdfFilePath),
+      out_prefix: path.basename(pdfFilePath, path.extname(pdfFilePath)),
+    }
+
+    await pdfPoppler.convert(pdfFilePath, options)
+
+    const imageFiles = fs
+      .readdirSync(path.dirname(pdfFilePath))
+      .filter(
+        (file) => file.startsWith(options.out_prefix) && file.endsWith('.png')
+      )
+
+    for (const imageFile of imageFiles) {
+      const imageFilePath = path.join(path.dirname(pdfFilePath), imageFile)
+      const imageUrl = await uploadToCloudinary(imageFilePath)
+      imagePaths.push(imageUrl)
+
+      fs.unlinkSync(imageFilePath)
+    }
+
+    fs.unlinkSync(pdfFilePath)
+
     return {
       status: 200,
       message: 'Add chapter success',
-      data: data,
+      imagePaths: imagePaths,
+      textPaths: textPaths,
     }
   } catch (error) {
+    console.error('Error processing chapter:', error.message)
     return {
       status: 500,
       message: error.message,
@@ -122,7 +178,6 @@ const getBookById = async (id) => {
   }
 }
 const search = async (params) => {
-  console.log(params)
   try {
     const query = {}
 

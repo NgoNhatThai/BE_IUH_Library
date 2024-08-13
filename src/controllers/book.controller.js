@@ -38,15 +38,18 @@ const remove = async (req, res) => {
 }
 const addChapter = async (req, res) => {
   try {
-    const { id } = req.params
-    const { chapter } = req.body
-    const book = await bookService.getBookById(id)
-    if (!book) {
-      res.status(404).send('Book not found')
-      return
+    if (!req.file) {
+      res.status(400).send('Bad request')
+      return {
+        status: 400,
+        message: 'Missing PDF file',
+      }
     }
-    book.chapters.push(chapter)
-    const data = await bookService.update(book)
+    const chapter = {
+      ...req.body,
+      file: req.file,
+    }
+    const data = await bookService.addChapter(chapter)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
