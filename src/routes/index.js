@@ -3,6 +3,7 @@ import InitRoutesAuthentication from '../routes/auth.route'
 import InitRoutesUsers from '../routes/user.route'
 import InitRoutesBook from '../routes/book.route'
 import InitRoutesImageUpload from '../routes/image_upload.route'
+import InitRouteAdmin from '../routes/admin.route'
 
 const router = express.Router()
 
@@ -17,6 +18,7 @@ const configRoutes = async (app) => {
   app.use('/users', InitRoutesUsers(router))
   app.use('/book', InitRoutesBook(router))
   app.use('/image', InitRoutesImageUpload(router))
+  app.use('/admin', InitRouteAdmin(router))
 }
 
 module.exports = configRoutes

@@ -3,8 +3,10 @@ const { Schema } = mongoose
 
 const AuthorModel = Schema(
   {
-    _id: Schema.Types.ObjectId,
-    name: String,
+    name: {
+      type: String,
+      required: true,
+    },
     birthDate: Date,
     desc: String,
     status: {
