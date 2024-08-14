@@ -8,6 +8,7 @@ import { PDFDocument } from 'pdf-lib'
 import pdfParse from 'pdf-parse'
 import pdfPoppler from 'pdf-poppler'
 import { exec } from 'child_process'
+import { title } from 'process'
 
 const create = async (book) => {
   try {
@@ -148,11 +149,28 @@ const addChapter = async (chapter) => {
 
     fs.unlinkSync(pdfFilePath)
 
+    const newChapter = new Chapter({
+      contentId: chapter.contentId,
+      title: chapter.title,
+      text: textPaths,
+      images: imagePaths,
+      numberOfPage: numPages,
+      status: 'ACTIVE',
+    })
+
+    const chapterData = await Chapter.create(newChapter)
+    content.numberOfChapter += 1
+    const result = await content.save()
+    if (!result) {
+      return {
+        status: 500,
+        message: 'Error updating content',
+      }
+    }
     return {
       status: 200,
       message: 'Add chapter success',
-      imagePaths: imagePaths,
-      textPaths: textPaths,
+      data: chapterData,
     }
   } catch (error) {
     console.error('Error processing chapter:', error.message)
@@ -216,7 +234,26 @@ const search = async (params) => {
     }
   }
 }
+const getDetailBookById = async (id) => {
+  try {
+    const data = await Book.findById(id).populate({
+      path: 'content',
+    })
+    const chapters = await Chapter.find({ contentId: data.content._id })
+    data.content.chapters = chapters
 
+    return {
+      status: 200,
+      message: 'Get detail book by id success',
+      data: data,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 module.exports = {
   create,
   update,
@@ -224,4 +261,5 @@ module.exports = {
   addChapter,
   getBookById,
   search,
+  getDetailBookById,
 }

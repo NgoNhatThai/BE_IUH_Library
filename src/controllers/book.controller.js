@@ -80,6 +80,15 @@ const search = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const getDetailBookById = async (req, res) => {
+  try {
+    const id = req.params.id
+    const data = await bookService.getDetailBookById(id)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 
 module.exports = {
   create,
@@ -88,4 +97,5 @@ module.exports = {
   addChapter,
   getBookById,
   search,
+  getDetailBookById,
 }

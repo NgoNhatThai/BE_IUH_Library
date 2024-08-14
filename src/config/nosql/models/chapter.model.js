@@ -3,11 +3,11 @@ const { Schema } = mongoose
 
 const ChapterModel = Schema(
   {
-    _id: Schema.Types.ObjectId,
     contentId: Schema.Types.ObjectId,
     title: String,
     text: [String],
     images: [String],
+    numberOfPage: Number,
     postDate: Date,
     updateDate: Date,
     status: {
