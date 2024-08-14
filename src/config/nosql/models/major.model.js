@@ -3,7 +3,6 @@ const { Schema } = mongoose
 
 const MajorModel = Schema(
   {
-    _id: Schema.Types.ObjectId,
     name: String,
     desc: String,
     status: {

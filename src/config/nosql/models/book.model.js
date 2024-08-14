@@ -4,9 +4,18 @@ const { Schema } = mongoose
 const BookModel = Schema(
   {
     title: String,
-    categoryId: Schema.Types.ObjectId,
-    authorId: Schema.Types.ObjectId,
-    majorId: Schema.Types.ObjectId,
+    categoryId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Category',
+    },
+    authorId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Author',
+    },
+    majorId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Major',
+    },
     content: {
       type: Schema.Types.ObjectId,
       ref: 'Content',

@@ -2,6 +2,9 @@ import cloudinary from '../config/cloudinary'
 import Book from '../config/nosql/models/book.model'
 import Content from '../config/nosql/models/content.model'
 import Chapter from '../config/nosql/models/chapter.model'
+import Author from '../config/nosql/models/author.model'
+import Category from '../config/nosql/models/category.model'
+import Major from '../config/nosql/models/major.model'
 import fs from 'fs'
 import path from 'path'
 import { PDFDocument } from 'pdf-lib'
@@ -18,7 +21,33 @@ const create = async (book) => {
         message: 'Missing required fields',
       }
     }
-
+    if (book.authorId) {
+      const author = await Author.findById(book.authorId)
+      if (!author) {
+        return {
+          status: 404,
+          message: 'Author not found',
+        }
+      }
+    }
+    if (book.categoryId) {
+      const category = await Category.findById(book.categoryId)
+      if (!category) {
+        return {
+          status: 404,
+          message: 'Category not found',
+        }
+      }
+    }
+    if (book.majorId) {
+      const major = await Major.findById(book.majorId)
+      if (!major) {
+        return {
+          status: 404,
+          message: 'Major not found',
+        }
+      }
+    }
     const localImagePath = path.join('uploads/', path.basename(book.image))
     const imagePath = await cloudinary.uploader.upload(book.image, {
       public_id: book.title,
@@ -36,6 +65,7 @@ const create = async (book) => {
       createDate: new Date(),
     })
     const data = await Book.create(bookData)
+    data.authorId = authorId
 
     fs.unlinkSync(localImagePath)
 
@@ -182,7 +212,11 @@ const addChapter = async (chapter) => {
 }
 const getBookById = async (id) => {
   try {
-    const data = await Book.findById(id).populate('content')
+    const data = await Book.findById(id)
+      .populate('content')
+      .populate('authorId')
+      .populate('categoryId')
+      .populate('majorId')
     return {
       status: 200,
       message: 'Get book by id success',
@@ -236,9 +270,13 @@ const search = async (params) => {
 }
 const getDetailBookById = async (id) => {
   try {
-    const data = await Book.findById(id).populate({
-      path: 'content',
-    })
+    const data = await Book.findById(id)
+      .populate({
+        path: 'content',
+      })
+      .populate('authorId')
+      .populate('categoryId')
+      .populate('majorId')
     const chapters = await Chapter.find({ contentId: data.content._id })
     data.content.chapters = chapters
 

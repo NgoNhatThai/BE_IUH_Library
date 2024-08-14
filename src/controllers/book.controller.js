@@ -1,4 +1,3 @@
-import mongoose from 'mongoose'
 import bookService from '../services/book.service.js'
 const create = async (req, res) => {
   try {
