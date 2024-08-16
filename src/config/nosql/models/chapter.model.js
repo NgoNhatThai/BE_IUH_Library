@@ -7,6 +7,7 @@ const ChapterModel = Schema(
     title: String,
     text: [String],
     images: [String],
+    mp3s: [String],
     numberOfPage: Number,
     postDate: Date,
     updateDate: Date,

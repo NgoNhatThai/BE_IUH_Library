@@ -88,7 +88,24 @@ const getDetailBookById = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
+const getBookType = async (req, res) => {
+  try {
+    const contentId = req.body
+    const data = await bookService.getBookType(contentId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+const getBookReview = async (req, res) => {
+  try {
+    const bookId = req.body
+    const data = await bookService.getBookReview(bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 module.exports = {
   create,
   update,
@@ -97,4 +114,6 @@ module.exports = {
   getBookById,
   search,
   getDetailBookById,
+  getBookType,
+  getBookReview,
 }

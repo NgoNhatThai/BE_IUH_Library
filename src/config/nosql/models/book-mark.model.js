@@ -3,7 +3,6 @@ const { Schema } = mongoose
 
 const BookMarkModel = Schema(
   {
-    _id: Schema.Types.ObjectId,
     userId: Schema.Types.ObjectId,
     bookId: Schema.Types.ObjectId,
     lastReadedChapterId: Schema.Types.ObjectId,

@@ -3,7 +3,6 @@ const { Schema } = mongoose
 
 const FollowListModel = Schema(
   {
-    _id: Schema.Types.ObjectId,
     userId: Schema.Types.ObjectId,
     books: [Schema.Types.ObjectId],
   },

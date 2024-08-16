@@ -5,13 +5,13 @@ import Chapter from '../config/nosql/models/chapter.model'
 import Author from '../config/nosql/models/author.model'
 import Category from '../config/nosql/models/category.model'
 import Major from '../config/nosql/models/major.model'
+import BookMark from '../config/nosql/models/book-mark.model'
 import fs from 'fs'
 import path from 'path'
 import { PDFDocument } from 'pdf-lib'
 import pdfParse from 'pdf-parse'
 import pdfPoppler from 'pdf-poppler'
-import { exec } from 'child_process'
-import { title } from 'process'
+import gTTS from 'gtts'
 
 const create = async (book) => {
   try {
@@ -81,7 +81,6 @@ const create = async (book) => {
     }
   }
 }
-
 const update = async (book) => {
   try {
     const data = await Book.update(book)
@@ -136,8 +135,28 @@ const uploadToCloudinary = async (filePath, resourceType = 'image') => {
   })
 }
 
+const uploadMp3ToCloudinary = async (filePath) => {
+  console.log('Uploading MP3 to Cloudinary:', filePath)
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(
+      filePath,
+      { resource_type: 'video' },
+      (error, result) => {
+        if (error) {
+          console.error('Upload error:', error)
+          reject(error)
+        } else {
+          console.log('Upload success:', result)
+          resolve(result.secure_url)
+        }
+      }
+    )
+  })
+}
+
 const addChapter = async (chapter) => {
   try {
+    // Check if chapter title is empty
     const content = await Content.findById(chapter.contentId)
     if (!chapter.title) {
       chapter.title = `Chapter ${
@@ -145,22 +164,49 @@ const addChapter = async (chapter) => {
       }`
     }
 
+    // Read PDF file
     const pdfFilePath = path.join('uploads', path.basename(chapter.file.path))
-
     const pdfData = fs.readFileSync(pdfFilePath)
+
+    // Parse PDF text
+    const pdfText = await pdfParse(pdfData)
+    const textPages = pdfText.text.split('\n\n')
+
+    const mp3Paths = []
+    let imagePaths = []
+
+    // Process each page, get json text and convert to mp3, upload to cloudinary, get link
+    for (const [index, text] of textPages.entries()) {
+      const cleanText = text.trim()
+      if (cleanText.length === 0) {
+        console.warn(`Page ${index + 1} is empty or contains invalid text.`)
+        continue
+      }
+
+      const mp3FilePath = path.join('uploads', `page-${index + 1}.mp3`)
+      const gtts = new gTTS(cleanText, 'vi')
+
+      await new Promise((resolve, reject) => {
+        gtts.save(mp3FilePath, (err) => {
+          if (err) reject(err)
+          else resolve()
+        })
+      })
+      const result = await uploadMp3ToCloudinary(mp3FilePath)
+      console.log('Uploaded MP3:', result)
+      mp3Paths.push(result)
+      fs.unlinkSync(mp3FilePath)
+    }
 
     const pdfDoc = await PDFDocument.load(pdfData)
     const numPages = pdfDoc.getPages().length
 
-    let imagePaths = []
-    let textPaths = []
-
+    // Convert PDF to images, upload to cloudinary, get link
     const options = {
       format: 'png',
       out_dir: path.dirname(pdfFilePath),
       out_prefix: path.basename(pdfFilePath, path.extname(pdfFilePath)),
     }
-
     await pdfPoppler.convert(pdfFilePath, options)
 
     const imageFiles = fs
@@ -177,13 +223,15 @@ const addChapter = async (chapter) => {
       fs.unlinkSync(imageFilePath)
     }
 
+    // Delete PDF file after processing
     fs.unlinkSync(pdfFilePath)
 
     const newChapter = new Chapter({
       contentId: chapter.contentId,
       title: chapter.title,
-      text: textPaths,
+      text: textPages,
       images: imagePaths,
+      mp3s: mp3Paths,
       numberOfPage: numPages,
       status: 'ACTIVE',
     })
@@ -217,6 +265,7 @@ const getBookById = async (id) => {
       .populate('authorId')
       .populate('categoryId')
       .populate('majorId')
+
     return {
       status: 200,
       message: 'Get book by id success',
@@ -292,6 +341,117 @@ const getDetailBookById = async (id) => {
     }
   }
 }
+const getBookType = async (contentId) => {
+  try {
+    const content = await Content.findById(contentId)
+    const book = await Book.findById(content.bookId)
+    return {
+      status: 200,
+      message: 'Get book type success',
+      data: book.type,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const createUserBookMark = async (userId, bookId) => {
+  try {
+    const bookMark = await BookMark.findOne({
+      userId: userId,
+    })
+    if (bookMark) {
+      if (bookMark.books.includes(bookId)) {
+        return {
+          status: 400,
+          message: 'Book already bookmarked',
+        }
+      }
+      bookMark.books.push(bookId)
+      const data = await bookMark.save()
+      return {
+        status: 200,
+        message: 'Create user book mark success',
+        data: data,
+      }
+    } else {
+      const newBookMark = new BookMark({
+        userId: userId,
+        books: [bookId],
+      })
+      const data = await BookMark.create(newBookMark)
+      return {
+        status: 200,
+        message: 'Create user book mark success',
+        data: data,
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const updateUserBookMark = async (userId, bookId) => {
+  try {
+    const bookMark = await BookMark.findOne({
+      userId: userId,
+    })
+    if (bookMark) {
+      if (bookMark.books.includes(bookId)) {
+        bookMark.books = bookMark.books.filter((id) => id !== bookId)
+        const data = await bookMark.save()
+        return {
+          status: 200,
+          message: 'Update user book mark success',
+          data: data,
+        }
+      } else {
+        return {
+          status: 400,
+          message: 'Book not bookmarked',
+        }
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'User book mark not found',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const getUserBookMark = async (userId) => {
+  try {
+    const bookMark = await BookMark.findOne({
+      userId: userId,
+    })
+    if (bookMark) {
+      return {
+        status: 200,
+        message: 'Get user book mark success',
+        data: bookMark,
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'User book mark not found',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 module.exports = {
   create,
   update,
@@ -300,4 +460,8 @@ module.exports = {
   getBookById,
   search,
   getDetailBookById,
+  getBookType,
+  createUserBookMark,
+  updateUserBookMark,
+  getUserBookMark,
 }

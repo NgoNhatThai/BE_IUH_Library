@@ -3,7 +3,6 @@ const { Schema } = mongoose
 
 const CommentModel = Schema(
   {
-    _id: Schema.Types.ObjectId,
     reviewId: Schema.Types.ObjectId,
     user: {
       type: Schema.Types.ObjectId,
