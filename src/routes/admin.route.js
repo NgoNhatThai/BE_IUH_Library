@@ -28,6 +28,11 @@ const InitRouteAdmin = (route) => {
   route
     .route('/get-all-major')
     .get(userMiddleware.checkJWT, adminController.getAllMajor)
+  route
+    .route('/create-config')
+    .post(userMiddleware.checkJWT, adminController.createLibraryConfig)
+  route.route('/get-config/:id').get(adminController.getLibraryConfig)
+
   return route
 }
 module.exports = InitRouteAdmin

@@ -65,6 +65,24 @@ const getAllMajor = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const createLibraryConfig = async (req, res) => {
+  try {
+    const config = req.body
+    const data = await adminService.createLibraryConfig(config)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+const getLibraryConfig = async (req, res) => {
+  try {
+    const id = req.params.id
+    const data = await adminService.getLibraryConfig(id)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 
 export default {
   createAuthor,
@@ -74,4 +92,6 @@ export default {
   getAllCategory,
   getAllMajor,
   updateAuthor,
+  createLibraryConfig,
+  getLibraryConfig,
 }
