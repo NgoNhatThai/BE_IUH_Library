@@ -452,6 +452,27 @@ const getUserBookMark = async (userId) => {
     }
   }
 }
+const getTopViewedBooks = async () => {
+  try {
+    const books = await Book.find()
+      .populate('content')
+      .populate('authorId')
+      .populate('categoryId')
+      .populate('majorId')
+      .sort({ 'content.totalView': -1 })
+      .limit(10)
+    return {
+      status: 200,
+      message: 'Get top viewed books success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 module.exports = {
   create,
   update,
@@ -464,4 +485,5 @@ module.exports = {
   createUserBookMark,
   updateUserBookMark,
   getUserBookMark,
+  getTopViewedBooks,
 }
