@@ -6,6 +6,7 @@ import Author from '../config/nosql/models/author.model'
 import Category from '../config/nosql/models/category.model'
 import Major from '../config/nosql/models/major.model'
 import BookMark from '../config/nosql/models/book-mark.model'
+import Review from '../config/nosql/models/review.model'
 import fs from 'fs'
 import path from 'path'
 import { PDFDocument } from 'pdf-lib'
@@ -57,6 +58,7 @@ const create = async (book) => {
       numberOfChapter: 0,
       chapters: [],
     })
+
     const contentData = await Content.create(content)
     const bookData = new Book({
       ...book,
@@ -65,7 +67,17 @@ const create = async (book) => {
       createDate: new Date(),
     })
     const data = await Book.create(bookData)
-    data.authorId = authorId
+    const review = new Review({
+      bookId: data._id,
+      totalLike: 0,
+      totalView: 0,
+      comments: [],
+      rate: 0,
+      rating: [],
+    })
+    const reviewResponse = await Review.create(review)
+    data.review = reviewResponse._id
+    await data.save()
 
     fs.unlinkSync(localImagePath)
 
@@ -473,6 +485,21 @@ const getTopViewedBooks = async () => {
     }
   }
 }
+const getDetailChapterById = async (id) => {
+  try {
+    const data = await Chapter.findById(id)
+    return {
+      status: 200,
+      message: 'Get detail chapter by id success',
+      data: data,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 module.exports = {
   create,
   update,
@@ -486,4 +513,5 @@ module.exports = {
   updateUserBookMark,
   getUserBookMark,
   getTopViewedBooks,
+  getDetailChapterById,
 }

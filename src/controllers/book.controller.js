@@ -115,6 +115,16 @@ const getTopViewedBooks = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const getDetailChapterById = async (req, res) => {
+  try {
+    const id = req.params.id
+    const data = await bookService.getDetailChapterById(id)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
 module.exports = {
   create,
   update,
@@ -126,4 +136,5 @@ module.exports = {
   getBookType,
   getBookReview,
   getTopViewedBooks,
+  getDetailChapterById,
 }
