@@ -15,7 +15,7 @@ const configRoutes = async (app) => {
     })
   })
   app.use('/auth', InitRoutesAuthentication(router))
-  app.use('/users', InitRoutesUsers(router))
+  app.use('/user', InitRoutesUsers(router))
   app.use('/book', InitRoutesBook(router))
   app.use('/image', InitRoutesImageUpload(router))
   app.use('/admin', InitRouteAdmin(router))

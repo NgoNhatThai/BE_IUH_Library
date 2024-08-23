@@ -32,29 +32,32 @@ const like = async (userId, bookId) => {
     throw new Error(error)
   }
 }
-const read = async () => {
+const read = async (bookId) => {
   try {
-    const review = await Review.find({
+    const review = await Review.findOne({
       bookId: bookId,
     })
+
+    if (!review) {
+      return {
+        errCode: 404,
+        message: 'Review not found',
+      }
+    }
+
     review.totalView += 1
     const result = await review.save()
-    if (!result) {
-      return {
-        errCode: 500,
-        message: 'Error updating review',
-      }
-    } else {
-      return {
-        errCode: 200,
-        message: 'Update review success (view)',
-        data: review,
-      }
+
+    return {
+      status: 200,
+      message: 'Update review success (view)',
+      data: review,
     }
   } catch (error) {
     throw new Error(error)
   }
 }
+
 const rate = async (userId, bookId, rating) => {
   try {
     if (!userId || !bookId || !rating) {

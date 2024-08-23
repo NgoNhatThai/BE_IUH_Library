@@ -12,8 +12,11 @@ const like = async (req, res) => {
 
 const read = async (req, res) => {
   try {
-    const { userId, bookId } = req.body
-    const data = await userService.read(userId, bookId)
+    const { bookId } = req.body
+    if (!bookId) {
+      res.status(400).send('Book id is required')
+    }
+    const data = await userService.read(bookId)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)

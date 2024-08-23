@@ -2,8 +2,8 @@ import userController from '../controllers/user.controller'
 import userMiddleware from '../middleware/user.middleware'
 
 const IntRoutesUsers = (router) => {
-  router.route('/like').post(userMiddleware.checkJWT, userController.like)
-  router.route('/read').post(userMiddleware.checkJWT, userController.read)
+  router.route('/like').post(userController.like)
+  router.route('/read').post(userController.read)
   router.route('/rate').post(userMiddleware.checkJWT, userController.rate)
   router.route('/comment').post(userMiddleware.checkJWT, userController.comment)
   router
