@@ -148,17 +148,14 @@ const uploadToCloudinary = async (filePath, resourceType = 'image') => {
 }
 
 const uploadMp3ToCloudinary = async (filePath) => {
-  console.log('Uploading MP3 to Cloudinary:', filePath)
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload(
       filePath,
       { resource_type: 'video' },
       (error, result) => {
         if (error) {
-          console.error('Upload error:', error)
           reject(error)
         } else {
-          console.log('Upload success:', result)
           resolve(result.secure_url)
         }
       }
@@ -205,7 +202,6 @@ const addChapter = async (chapter) => {
         })
       })
       const result = await uploadMp3ToCloudinary(mp3FilePath)
-      console.log('Uploaded MP3:', result)
       mp3Paths.push(result)
       fs.unlinkSync(mp3FilePath)
     }
@@ -338,7 +334,10 @@ const getDetailBookById = async (id) => {
       .populate('authorId')
       .populate('categoryId')
       .populate('majorId')
-    const chapters = await Chapter.find({ contentId: data.content._id })
+
+    const chapters = await Chapter.find({
+      contentId: data.content._id,
+    }).select('-text')
     data.content.chapters = chapters
 
     return {
@@ -471,6 +470,7 @@ const getTopViewedBooks = async () => {
       .populate('authorId')
       .populate('categoryId')
       .populate('majorId')
+      .populate('review')
       .sort({ 'content.totalView': -1 })
       .limit(10)
     return {
@@ -487,7 +487,11 @@ const getTopViewedBooks = async () => {
 }
 const getDetailChapterById = async (id) => {
   try {
-    const data = await Chapter.findById(id)
+    const data = await Chapter.findById(id).select('-text').lean()
+    const allChapters = await Chapter.find({
+      contentId: data.contentId,
+    }).select('-text')
+    data.allChapters = allChapters
     return {
       status: 200,
       message: 'Get detail chapter by id success',
