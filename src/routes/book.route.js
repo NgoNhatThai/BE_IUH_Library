@@ -28,7 +28,7 @@ const InitRoutesBook = (router) => {
   router
     .route('/get-detail-chapter/:id')
     .get(bookController.getDetailChapterById)
-
+  router.route('/get-related-books/:id').get(bookController.getRelatedBooks)
   return router
 }
 

@@ -16,7 +16,7 @@ import gTTS from 'gtts'
 
 const create = async (book) => {
   try {
-    if (!book.title || !book.image) {
+    if (!book.title || !book.image || !book.type) {
       return {
         status: 400,
         message: 'Missing required fields',
@@ -185,27 +185,29 @@ const addChapter = async (chapter) => {
     let imagePaths = []
 
     // Process each page, get json text and convert to mp3, upload to cloudinary, get link
-    for (const [index, text] of textPages.entries()) {
-      const cleanText = text.trim()
-      if (cleanText.length === 0) {
-        console.warn(`Page ${index + 1} is empty or contains invalid text.`)
-        continue
-      }
+    const bookType = await getBookType(chapter.contentId)
+    if (bookType === 'VOICE') {
+      for (const [index, text] of textPages.entries()) {
+        const cleanText = text.trim()
+        if (cleanText.length === 0) {
+          console.warn(`Page ${index + 1} is empty or contains invalid text.`)
+          continue
+        }
 
-      const mp3FilePath = path.join('uploads', `page-${index + 1}.mp3`)
-      const gtts = new gTTS(cleanText, 'vi')
+        const mp3FilePath = path.join('uploads', `page-${index + 1}.mp3`)
+        const gtts = new gTTS(cleanText, 'vi')
 
-      await new Promise((resolve, reject) => {
-        gtts.save(mp3FilePath, (err) => {
-          if (err) reject(err)
-          else resolve()
+        await new Promise((resolve, reject) => {
+          gtts.save(mp3FilePath, (err) => {
+            if (err) reject(err)
+            else resolve()
+          })
         })
-      })
-      const result = await uploadMp3ToCloudinary(mp3FilePath)
-      mp3Paths.push(result)
-      fs.unlinkSync(mp3FilePath)
+        const result = await uploadMp3ToCloudinary(mp3FilePath)
+        mp3Paths.push(result)
+        fs.unlinkSync(mp3FilePath)
+      }
     }
-
     const pdfDoc = await PDFDocument.load(pdfData)
     const numPages = pdfDoc.getPages().length
 
@@ -235,6 +237,7 @@ const addChapter = async (chapter) => {
     fs.unlinkSync(pdfFilePath)
 
     const newChapter = new Chapter({
+      bookId: content.bookId,
       contentId: chapter.contentId,
       title: chapter.title,
       text: textPages,
@@ -357,16 +360,12 @@ const getBookType = async (contentId) => {
   try {
     const content = await Content.findById(contentId)
     const book = await Book.findById(content.bookId)
-    return {
-      status: 200,
-      message: 'Get book type success',
-      data: book.type,
+    if (!book) {
+      return null
     }
+    return book.type
   } catch (error) {
-    return {
-      status: 500,
-      message: error.message,
-    }
+    return null
   }
 }
 const createUserBookMark = async (userId, bookId) => {
@@ -505,6 +504,36 @@ const getDetailChapterById = async (id) => {
     }
   }
 }
+const getRelatedBooks = async (id) => {
+  try {
+    const book = await Book.findById(id)
+    if (!book) {
+      return {
+        status: 404,
+        message: 'Book not found',
+      }
+    }
+
+    const books = await Book.find({
+      $or: [{ categoryId: book.categoryId }, { authorId: book.authorId }],
+      _id: { $ne: book._id },
+    })
+      .limit(10)
+      .lean()
+
+    return {
+      status: 200,
+      message: 'Get related books success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+
 module.exports = {
   create,
   update,
@@ -519,4 +548,5 @@ module.exports = {
   getUserBookMark,
   getTopViewedBooks,
   getDetailChapterById,
+  getRelatedBooks,
 }

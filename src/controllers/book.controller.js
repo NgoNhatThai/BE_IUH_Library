@@ -124,7 +124,22 @@ const getDetailChapterById = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
+const getRelatedBooks = async (req, res) => {
+  try {
+    const id = req.params.id
+    if (!id) {
+      res.status(400).send('Bad request')
+      return {
+        status: 400,
+        message: 'Missing book id',
+      }
+    }
+    const data = await bookService.getRelatedBooks(id)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 module.exports = {
   create,
   update,
@@ -137,4 +152,5 @@ module.exports = {
   getBookReview,
   getTopViewedBooks,
   getDetailChapterById,
+  getRelatedBooks,
 }
