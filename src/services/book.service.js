@@ -533,6 +533,55 @@ const getRelatedBooks = async (id) => {
     }
   }
 }
+const findBooksByTextInput = async (text) => {
+  try {
+    const books = await Book.aggregate([
+      {
+        $lookup: {
+          from: 'authors', // Tên collection của Author
+          localField: 'authorId',
+          foreignField: '_id',
+          as: 'author',
+        },
+      },
+      {
+        $lookup: {
+          from: 'categories', // Tên collection của Category
+          localField: 'categoryId',
+          foreignField: '_id',
+          as: 'category',
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { title: { $regex: text, $options: 'i' } },
+            { 'author.name': { $regex: text, $options: 'i' } },
+            { 'category.name': { $regex: text, $options: 'i' } },
+          ],
+        },
+      },
+      {
+        $project: {
+          title: 1,
+          author: { $arrayElemAt: ['$author.name', 0] },
+          category: { $arrayElemAt: ['$category.name', 0] },
+        },
+      },
+    ])
+
+    return {
+      status: 200,
+      message: 'Find books by text input success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   create,
@@ -549,4 +598,5 @@ module.exports = {
   getTopViewedBooks,
   getDetailChapterById,
   getRelatedBooks,
+  findBooksByTextInput,
 }
