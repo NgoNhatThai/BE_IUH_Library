@@ -341,7 +341,7 @@ const getDetailBookById = async (id) => {
 
     const chapters = await Chapter.find({
       contentId: data.content._id,
-    }).select('-text')
+    })
     data.content.chapters = chapters
 
     return {
@@ -487,10 +487,10 @@ const getTopViewedBooks = async () => {
 }
 const getDetailChapterById = async (id) => {
   try {
-    const data = await Chapter.findById(id).select('-text').lean()
+    const data = await Chapter.findById(id).lean()
     const allChapters = await Chapter.find({
       contentId: data.contentId,
-    }).select('-text')
+    })
     data.allChapters = allChapters
     return {
       status: 200,
