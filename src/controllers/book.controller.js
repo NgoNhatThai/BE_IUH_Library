@@ -155,6 +155,22 @@ const findBooksByTextInput = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const getBookByCategory = async (req, res) => {
+  try {
+    const { categoryId } = req.body
+    if (!categoryId) {
+      res.status(400).send('Bad request')
+      return {
+        status: 400,
+        message: 'Missing category id',
+      }
+    }
+    const data = await bookService.getBookByCategory(categoryId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 module.exports = {
   create,
   update,
@@ -169,4 +185,5 @@ module.exports = {
   getDetailChapterById,
   getRelatedBooks,
   findBooksByTextInput,
+  getBookByCategory,
 }

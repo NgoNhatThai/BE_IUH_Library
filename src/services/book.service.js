@@ -627,6 +627,26 @@ const sendAddedChapterNotification = async (chapter, bookId) => {
     }
   }
 }
+const getBookByCategory = async (categoryId) => {
+  try {
+    const books = await Book.find({ categoryId: categoryId })
+      .populate('content')
+      .populate('authorId')
+      .populate('categoryId')
+      .populate('majorId')
+      .populate('review')
+    return {
+      status: 200,
+      message: 'Get book by category success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   create,
@@ -644,4 +664,5 @@ module.exports = {
   getDetailChapterById,
   getRelatedBooks,
   findBooksByTextInput,
+  getBookByCategory,
 }

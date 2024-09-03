@@ -32,6 +32,8 @@ const InitRoutesBook = (router) => {
   router
     .route('/find-books-by-text-input')
     .get(bookController.findBooksByTextInput)
+  router.route('/get-book-by-category').get(bookController.getBookByCategory)
+
   return router
 }
 
