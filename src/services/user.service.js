@@ -2,6 +2,7 @@ import Review from '../config/nosql/models/review.model'
 import Comment from '../config/nosql/models/comment.model'
 import BookMark from '../config/nosql/models/book-mark.model'
 import FollowList from '../config/nosql/models/follow-list.model'
+import Notify from '../config/nosql/models/notify.model'
 
 const like = async (userId, bookId) => {
   try {
@@ -57,7 +58,6 @@ const read = async (bookId) => {
     throw new Error(error)
   }
 }
-
 const rate = async (userId, bookId, rating) => {
   try {
     if (!userId || !bookId || !rating) {
@@ -264,6 +264,58 @@ const getFollowList = async (userId) => {
     }
   }
 }
+const getNotification = async (userId) => {
+  try {
+    const notification = await Notify.find({
+      userId: userId,
+    })
+    if (notification) {
+      return {
+        status: 200,
+        message: 'Get notification success',
+        data: notification,
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'Notification not found',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const updateNotificationStatus = async (userId, notifyId) => {
+  try {
+    const notification = Notify.findOne({
+      userId: userId,
+      _id: notifyId,
+    })
+    if (notification) {
+      notification.status = 'READ'
+      const result = await notification.save()
+      if (result) {
+        return {
+          status: 200,
+          message: 'Update notification status success',
+        }
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'Notification not found',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 module.exports = {
   like,
   read,
@@ -274,4 +326,6 @@ module.exports = {
   getUserBookMark,
   follow,
   getFollowList,
+  getNotification,
+  updateNotificationStatus,
 }

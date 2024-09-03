@@ -1,3 +1,4 @@
+import { get } from 'lodash'
 import userService from '../services/user.service'
 
 const like = async (req, res) => {
@@ -83,14 +84,40 @@ const follow = async (req, res) => {
 
 const getFollowList = async (req, res) => {
   try {
-    const userId = req.body
+    const { userId } = req.body
+    if (!userId) {
+      res.status(400).send('User id is required')
+    }
     const data = await userService.getFollowList(userId)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
   }
 }
-
+const getNotification = async (req, res) => {
+  try {
+    const { userId } = req.body
+    if (!userId) {
+      res.status(400).send('User id is required')
+    }
+    const data = await userService.getNotification(userId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+const updateNotificationStatus = async (req, res) => {
+  try {
+    const { userId, notifyId } = req.body
+    if (!userId || !notifyId) {
+      res.status(400).send('User id and notify id are required')
+    }
+    const data = await userService.updateNotificationStatus(userId, notifyId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 module.exports = {
   like,
   read,
@@ -101,4 +128,6 @@ module.exports = {
   getUserBookMark,
   follow,
   getFollowList,
+  getNotification,
+  updateNotificationStatus,
 }

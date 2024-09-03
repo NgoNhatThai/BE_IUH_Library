@@ -7,6 +7,8 @@ import Category from '../config/nosql/models/category.model'
 import Major from '../config/nosql/models/major.model'
 import BookMark from '../config/nosql/models/book-mark.model'
 import Review from '../config/nosql/models/review.model'
+import Notify from '../config/nosql/models/notify.model'
+import FollowList from '../config/nosql/models/follow-list.model'
 import fs from 'fs'
 import path from 'path'
 import { PDFDocument } from 'pdf-lib'
@@ -53,20 +55,25 @@ const create = async (book) => {
     const imagePath = await cloudinary.uploader.upload(book.image, {
       public_id: book.title,
     })
+    const bookData = new Book({
+      ...book,
+      image: imagePath.secure_url,
+      createDate: new Date(),
+    })
+    const data = await Book.create(bookData)
+
     const content = new Content({
-      bookId: book._id,
+      bookId: data._id,
       numberOfChapter: 0,
       chapters: [],
     })
 
     const contentData = await Content.create(content)
-    const bookData = new Book({
-      ...book,
-      content: contentData._id,
-      image: imagePath.secure_url,
-      createDate: new Date(),
-    })
-    const data = await Book.create(bookData)
+
+    const bookUpdate = await Book.findById(data._id)
+    bookUpdate.content = contentData._id
+    await bookUpdate.save()
+
     const review = new Review({
       bookId: data._id,
       totalLike: 0,
@@ -146,7 +153,6 @@ const uploadToCloudinary = async (filePath, resourceType = 'image') => {
     )
   })
 }
-
 const uploadMp3ToCloudinary = async (filePath) => {
   return new Promise((resolve, reject) => {
     cloudinary.uploader.upload(
@@ -162,7 +168,6 @@ const uploadMp3ToCloudinary = async (filePath) => {
     )
   })
 }
-
 const addChapter = async (chapter) => {
   try {
     // Check if chapter title is empty
@@ -250,6 +255,9 @@ const addChapter = async (chapter) => {
     const chapterData = await Chapter.create(newChapter)
     content.numberOfChapter += 1
     const result = await content.save()
+
+    await sendAddedChapterNotification(chapterData, content.bookId)
+
     if (!result) {
       return {
         status: 500,
@@ -574,6 +582,43 @@ const findBooksByTextInput = async (text) => {
       status: 200,
       message: 'Find books by text input success',
       data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const sendAddedChapterNotification = async (chapter, bookId) => {
+  console.log('sendAddedChapterNotification', chapter, bookId)
+  try {
+    const listFollowers = await FollowList.find({
+      books: { $in: [bookId] },
+    }).select('userId')
+
+    const book = await Book.findById(bookId)
+    if (!book) {
+      return {
+        status: 404,
+        message: 'Book not found',
+      }
+    }
+    console.log('listFollowers', listFollowers)
+
+    if (listFollowers) {
+      listFollowers.forEach(async (follower) => {
+        const notify = new Notify({
+          userId: follower.userId,
+          bookId: bookId,
+          chapterId: chapter._id,
+          message: `${book.title} đã có chương mới: ${chapter.title}`,
+          status: 'UNREAD',
+          createDate: new Date(),
+        })
+        console.log('notify', notify)
+        await Notify.create(notify)
+      })
     }
   } catch (error) {
     return {

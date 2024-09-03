@@ -19,7 +19,12 @@ const IntRoutesUsers = (router) => {
   router
     .route('/get-follow-list')
     .get(userMiddleware.checkJWT, userController.getFollowList)
-
+  router
+    .route('/get-notification')
+    .get(userMiddleware.checkJWT, userController.getNotification)
+  router
+    .route('/update-notification-status')
+    .post(userMiddleware.checkJWT, userController.updateNotificationStatus)
   return router
 }
 
