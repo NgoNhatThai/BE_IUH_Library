@@ -6,7 +6,12 @@ const ReviewModel = Schema(
     bookId: Schema.Types.ObjectId,
     totalLike: Number,
     totalView: Number,
-    comments: [Schema.Types.ObjectId],
+    comments: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'Comment',
+      },
+    ],
     rate: Number,
     rating: [
       {

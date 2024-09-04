@@ -66,9 +66,16 @@ const rate = async (userId, bookId, rating) => {
         message: 'Missing required fields',
       }
     }
-    const review = await Review.find({
+    const review = await Review.findOne({
       bookId: bookId,
     })
+    if (review.userId === userId) {
+      return {
+        errCode: 409,
+        message: 'User can not rate twice',
+        data: review,
+      }
+    }
     review.rating.push(rating)
     review.rate = review.rating.reduce((a, b) => a + b) / review.rating.length
 
@@ -97,7 +104,7 @@ const comment = async (userId, bookId, comment) => {
         message: 'Missing required fields',
       }
     }
-    const review = await Review.find({
+    const review = await Review.findOne({
       bookId: bookId,
     })
 
@@ -110,6 +117,7 @@ const comment = async (userId, bookId, comment) => {
 
     review.comments.push(newComment._id)
     const result = await review.save()
+
     if (!result) {
       return {
         errCode: 500,
@@ -239,7 +247,6 @@ const follow = async (userId, bookId) => {
     }
   }
 }
-
 const getFollowList = async (userId) => {
   try {
     const followList = await FollowList.findOne({

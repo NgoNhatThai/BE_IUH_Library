@@ -345,7 +345,12 @@ const getDetailBookById = async (id) => {
       .populate('authorId')
       .populate('categoryId')
       .populate('majorId')
-      .populate('review')
+      .populate({
+        path: 'review',
+        populate: {
+          path: 'comments',
+        },
+      })
 
     const chapters = await Chapter.find({
       contentId: data.content._id,
