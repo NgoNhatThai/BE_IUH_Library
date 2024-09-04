@@ -65,13 +65,9 @@ const getBookById = async (req, res) => {
 }
 const search = async (req, res) => {
   try {
-    const params = req.body
-    if (!params) {
-      res.status(400).send('Bad request')
-      return {
-        status: 400,
-        message: 'Missing params',
-      }
+    const params = req.query
+    if (!Object.keys(params).length) {
+      return res.status(400).send('Bad request: Missing params')
     }
     const data = await bookService.search(params)
     res.status(200).json(data)
@@ -90,7 +86,10 @@ const getDetailBookById = async (req, res) => {
 }
 const getBookType = async (req, res) => {
   try {
-    const contentId = req.body
+    const { contentId } = req.query
+    if (!contentId) {
+      return res.status(400).send('Bad request: Missing contentId')
+    }
     const data = await bookService.getBookType(contentId)
     res.status(200).json(data)
   } catch (error) {
@@ -99,7 +98,10 @@ const getBookType = async (req, res) => {
 }
 const getBookReview = async (req, res) => {
   try {
-    const bookId = req.body
+    const { bookId } = req.query
+    if (!bookId) {
+      return res.status(400).send('Bad request: Missing bookId')
+    }
     const data = await bookService.getBookReview(bookId)
     res.status(200).json(data)
   } catch (error) {
@@ -141,7 +143,7 @@ const getRelatedBooks = async (req, res) => {
 }
 const findBooksByTextInput = async (req, res) => {
   try {
-    const text = req.body
+    const { text } = req.query
     if (!text) {
       res.status(400).send('Bad request')
       return {
@@ -149,7 +151,7 @@ const findBooksByTextInput = async (req, res) => {
         message: 'Missing text',
       }
     }
-    const data = await bookService.findBooksByTextInput(text.text)
+    const data = await bookService.findBooksByTextInput(text) // Sử dụng text trực tiếp
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
@@ -157,15 +159,15 @@ const findBooksByTextInput = async (req, res) => {
 }
 const getBookByCategory = async (req, res) => {
   try {
-    const { categoryId } = req.body
-    if (!categoryId) {
+    const { id } = req.params
+    if (!id) {
       res.status(400).send('Bad request')
       return {
         status: 400,
         message: 'Missing category id',
       }
     }
-    const data = await bookService.getBookByCategory(categoryId)
+    const data = await bookService.getBookByCategory(id)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)

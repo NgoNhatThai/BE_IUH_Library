@@ -65,13 +65,17 @@ const updateUserBookMark = async (req, res) => {
 
 const getUserBookMark = async (req, res) => {
   try {
-    const userId = req.body
+    const { userId } = req.query
+    if (!userId) {
+      return res.status(400).send('Bad request: Missing userId')
+    }
     const data = await userService.getUserBookMark(userId)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
   }
 }
+
 const follow = async (req, res) => {
   try {
     const { userId, bookId } = req.body
@@ -84,9 +88,9 @@ const follow = async (req, res) => {
 
 const getFollowList = async (req, res) => {
   try {
-    const { userId } = req.body
+    const { userId } = req.query
     if (!userId) {
-      res.status(400).send('User id is required')
+      return res.status(400).send('User id is required')
     }
     const data = await userService.getFollowList(userId)
     res.status(200).json(data)
@@ -94,11 +98,12 @@ const getFollowList = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+
 const getNotification = async (req, res) => {
   try {
-    const { userId } = req.body
+    const { userId } = req.query
     if (!userId) {
-      res.status(400).send('User id is required')
+      return res.status(400).send('User id is required')
     }
     const data = await userService.getNotification(userId)
     res.status(200).json(data)
@@ -106,6 +111,7 @@ const getNotification = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+
 const updateNotificationStatus = async (req, res) => {
   try {
     const { userId, notifyId } = req.body
