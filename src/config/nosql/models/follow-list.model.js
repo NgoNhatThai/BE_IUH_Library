@@ -4,7 +4,7 @@ const { Schema } = mongoose
 const FollowListModel = Schema(
   {
     userId: Schema.Types.ObjectId,
-    books: [Schema.Types.ObjectId],
+    books: [{ type: Schema.Types.ObjectId, ref: 'Book' }],
   },
   {
     timestamps: true,

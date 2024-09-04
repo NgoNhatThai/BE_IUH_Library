@@ -219,22 +219,25 @@ const follow = async (userId, bookId) => {
         message: 'Missing required fields',
       }
     }
-    const followList = await FollowList.findOne({
-      userId: userId,
-    })
+
+    let followList = await FollowList.findOne({ userId: userId })
+
     if (!followList) {
       const newFollowList = await FollowList.create({
         userId: userId,
         books: [bookId],
       })
-      if (newFollowList) {
-        return {
-          status: 200,
-          message: 'Follow book success',
-        }
+
+      return {
+        status: 200,
+        message: 'Follow book success',
       }
     } else {
-      followList.books.push(bookId)
+      if (!followList.books.includes(bookId)) {
+        followList.books.push(bookId)
+        await followList.save()
+      }
+
       return {
         status: 200,
         message: 'Follow book success',
@@ -247,6 +250,7 @@ const follow = async (userId, bookId) => {
     }
   }
 }
+
 const getFollowList = async (userId) => {
   try {
     const followList = await FollowList.findOne({
