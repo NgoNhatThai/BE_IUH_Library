@@ -5,7 +5,10 @@ const { Schema } = mongoose
 const NotifyModel = Schema(
   {
     userId: Schema.Types.ObjectId,
-    bookId: Schema.Types.ObjectId,
+    bookId: {
+      type: Schema.Types.ObjectId,
+      ref: Book,
+    },
     chapterId: Schema.Types.ObjectId,
     message: String,
     status: {

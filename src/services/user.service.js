@@ -279,6 +279,11 @@ const getNotification = async (userId) => {
   try {
     const notification = await Notify.find({
       userId: userId,
+    }).populate({
+      path: 'bookId',
+      populate: {
+        path: 'authorId',
+      },
     })
     if (notification) {
       return {
