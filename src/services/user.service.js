@@ -227,11 +227,11 @@ const follow = async (userId, bookId) => {
         userId: userId,
         books: [bookId],
       })
-
-      return {
-        status: 200,
-        message: 'Follow book success',
-      }
+      if (newFollowList)
+        return {
+          status: 200,
+          message: 'Follow book success',
+        }
     } else {
       if (!followList.books.includes(bookId)) {
         followList.books.push(bookId)
@@ -301,7 +301,7 @@ const getNotification = async (userId) => {
 }
 const updateNotificationStatus = async (userId, notifyId) => {
   try {
-    const notification = Notify.findOne({
+    let notification = await Notify.findOne({
       userId: userId,
       _id: notifyId,
     })
