@@ -579,6 +579,10 @@ const findBooksByTextInput = async (text) => {
           title: 1,
           author: { $arrayElemAt: ['$author.name', 0] },
           category: { $arrayElemAt: ['$category.name', 0] },
+          image: 1,
+          type: 1,
+          createDate: 1,
+          price: 1,
         },
       },
     ])
