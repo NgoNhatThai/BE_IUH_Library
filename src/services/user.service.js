@@ -1,888 +1,342 @@
-import { Op, where } from 'sequelize';
-import db, { sequelize } from '../config/sql/models/index.model';
-import customizeUser from '../ultils/customizeUser';
-import { STATUS_FRIENDSHIP } from '../ultils/types';
-import emailService from './email.service';
+import Review from '../config/nosql/models/review.model'
+import Comment from '../config/nosql/models/comment.model'
+import BookMark from '../config/nosql/models/book-mark.model'
+import FollowList from '../config/nosql/models/follow-list.model'
+import Notify from '../config/nosql/models/notify.model'
 
-const getAllUsers = async () => {
-    const attributes = ['id', 'userName', 'phoneNumber', 'avatar'];
-    try {
-        const users = await db.User.findAll({
-            attributes: attributes,
-            // include: [bar]
-        });
-        return {
-            errCode: 0,
-            message: 'Find all users',
-            data: users
-        }
-    } catch (error) {
-        throw new Error(error);
+const like = async (userId, bookId) => {
+  try {
+    if (!userId || !bookId) {
+      return {
+        errCode: 409,
+        message: 'Missing required fields',
+      }
     }
+    const review = await Review.find({
+      bookId: bookId,
+    })
+    review.totalLike += 1
+    const result = await review.save()
+    if (!result) {
+      return {
+        errCode: 500,
+        message: 'Error updating review',
+      }
+    } else {
+      return {
+        errCode: 200,
+        message: 'Update review success (like)',
+        data: review,
+      }
+    }
+  } catch (error) {
+    throw new Error(error)
+  }
 }
+const read = async (bookId) => {
+  try {
+    const review = await Review.findOne({
+      bookId: bookId,
+    })
 
-const getUserById = async (id) => {
-    const attributes = ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline', 'peerId', 'email'];
-    try {
-        const user = await db.User.findOne({
-            where: {
-                id: id,
-            },
-            attributes
-        });
-
-        const base64 = Buffer.from(user.avatar, 'base64');
-        user.avatar = base64.toString();
-
-        if (user)
-            return {
-                errCode: 0,
-                message: 'Get user success',
-                data: user
-            }
-        return null;
-    } catch (error) {
-        throw new Error(error);
+    if (!review) {
+      return {
+        errCode: 404,
+        message: 'Review not found',
+      }
     }
-}
 
-const getUserByPhone = async (phoneNumber) => {
-    try {
-        const user = await db.User.findOne({
-            where: {
-                phoneNumber,
-            },
-        });
-        const myUser = customizeUser.standardUser(user);
-        if (user)
-            return {
-                errCode: 0,
-                message: 'Get user success',
-                data: myUser
-            }
-        return null;
-    } catch (error) {
-        throw new Error(error);
-    }
-}
+    review.totalView += 1
+    const result = await review.save()
 
-const newInfoContact = async (info) => {
-    const profile = await db.ProfileContact.create(info);
-    if (profile) {
-        const data = customizeUser.standardProfile(profile.dataValues);
-        if (profile)
-            return {
-                errCode: 0,
-                message: 'Create info contact success',
-                profile: data
-            }
-        else
-            return {
-                errCode: 2,
-                message: 'Create info contact failed'
-            }
-    }
     return {
-        errCode: 2,
-        message: 'Create info contact failed'
+      status: 200,
+      message: 'Update review success (view)',
+      data: review,
     }
+  } catch (error) {
+    throw new Error(error)
+  }
 }
-
-const getProfileByUserId = async (userId) => {
-    try {
-        const data = await db.ProfileContact.findOne({
-            where: {
-                userId
-            },
-            attributes: {
-                exclude: ['userInfoId']
-            },
-        });
-        return {
-            errCode: 0,
-            message: 'Get success',
-            data: customizeUser.standardProfile(data)
-        }
-    } catch (error) {
-        throw error;
+const rate = async (userId, bookId, rating) => {
+  try {
+    if (!userId || !bookId || !rating) {
+      return {
+        errCode: 409,
+        message: 'Missing required fields',
+      }
     }
+    const review = await Review.findOne({
+      bookId: bookId,
+    })
+    if (review.userId === userId) {
+      return {
+        errCode: 409,
+        message: 'User can not rate twice',
+        data: review,
+      }
+    }
+    review.rating.push(rating)
+    review.rate = review.rating.reduce((a, b) => a + b) / review.rating.length
 
+    const result = await review.save()
+    if (!result) {
+      return {
+        errCode: 500,
+        message: 'Error updating review',
+      }
+    } else {
+      return {
+        errCode: 200,
+        message: 'Update review success (rate)',
+        data: review,
+      }
+    }
+  } catch (error) {
+    throw new Error(error)
+  }
 }
-
-const getUserWithProfileById = async (phoneNumber) => {
-    const user = await db.User.findOne({
-        where: {
-            phoneNumber
-        },
-        attributes: ['id', 'userName', 'phoneNumber', 'avatar'],
-        include: [{
-            model: db.ProfileContact,
-            as: 'userInfo',
-            attributes: ['birthdate', 'gender', 'soundTrack', 'coverImage', 'description']
-        }],
-        nest: true,
-        raw: true
-        //ProfileContact
-    });
-    if (user) {
-        const avatar = user.avatar;
-        const base64 = Buffer.from(avatar, 'base64');
-        user.avatar = base64.toString();
-        return {
-            errCode: 0,
-            message: 'Get user success',
-            data: user
-        }
+const comment = async (userId, bookId, comment) => {
+  try {
+    if (!userId || !bookId || !comment) {
+      return {
+        errCode: 409,
+        message: 'Missing required fields',
+      }
     }
+    const review = await Review.findOne({
+      bookId: bookId,
+    })
+
+    const newComment = await Comment.create({
+      reviewId: review._id,
+      user: userId,
+      content: comment,
+      postDate: new Date(),
+    })
+
+    review.comments.push(newComment._id)
+    const result = await review.save()
+
+    if (!result) {
+      return {
+        errCode: 500,
+        message: 'Error updating review',
+      }
+    } else {
+      return {
+        errCode: 200,
+        message: 'Update review success (comment)',
+        data: review,
+      }
+    }
+  } catch (error) {
+    throw new Error(error)
+  }
+}
+const createUserBookMark = async (userId, bookId) => {
+  try {
+    const bookMark = await BookMark.create({
+      userId: userId,
+      bookId: bookId,
+    })
     return {
-        errCode: 1,
-        message: 'User not found'
+      status: 200,
+      message: 'Create user book mark success',
+      data: bookMark,
     }
-
-}
-
-const sendRequestAddFriendOrRecall = async (user1Id, user2Id, content) => {
-    try {
-        user1Id = parseInt(user1Id);
-        user2Id = parseInt(user2Id);
-        const friendShipOne = await db.FriendShip.findOne({
-            where: {
-                [Op.or]: [
-                    {
-                        user1Id,
-                        user2Id
-                    },
-                    {
-                        user1Id: user2Id,
-                        user2Id: user1Id
-                    }
-                ]
-            },
-            raw: false
-        })
-        if (!friendShipOne) {
-            const friendShip = await db.FriendShip.create({
-                user1Id,
-                user2Id,
-                status: STATUS_FRIENDSHIP.PENDING
-            });
-            await createNofiticationFriendShip(friendShip.id, content);
-            return {
-                errCode: 0,
-                message: 'Send request success',
-                data: friendShip
-            }
-        } else if (friendShipOne.status !== STATUS_FRIENDSHIP.RESOLVE && friendShipOne.status !== STATUS_FRIENDSHIP.PENDING) {
-            friendShipOne.status = STATUS_FRIENDSHIP.PENDING;
-            friendShipOne.user1Id = user1Id;
-            friendShipOne.user2Id = user2Id;
-            await friendShipOne.save();
-
-
-            await createNofiticationFriendShip(friendShipOne.id, content);
-            return {
-                errCode: 0,
-                message: 'Send request success',
-                data: friendShipOne
-            }
-        } else {
-            // xóa notification
-            await db.NotificationFriendShip.destroy({
-                where: {
-                    friendShipId: friendShipOne.id
-                }
-            });
-            // đang chuẩn bị thu hồi
-            await friendShipOne.destroy({
-                where: {
-                    // criteria
-                    user1Id: user1Id,
-                    user2Id: user2Id
-                }
-            });
-            return {
-                errCode: 3,
-                message: 'Thu hồi tin nhắn success'
-            }
-        }
-
-    } catch (error) {
-        throw error;
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
     }
-
+  }
 }
-
-const findFriendShip = async (user1Id, user2Id) => {
-    try {
-        user1Id = parseInt(user1Id);
-        user2Id = parseInt(user2Id);
-        const friendShip = await db.FriendShip.findOne({
-            where: {
-                [Op.or]: [
-                    {
-                        user1Id,
-                        user2Id
-                    },
-                    {
-                        user1Id: user2Id,
-                        user2Id: user1Id
-                    }
-                ]
-
-            },
-            attributes: ['id', 'status'],
-            include: [
-                {
-                    model: db.User,
-                    as: 'sender',
-                    attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                },
-                {
-                    model: db.User,
-                    as: 'receiver',
-                    attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                }
-            ],
-            nest: true,
-            raw: true
-        });
-
-        if (friendShip) {
-            const sender = friendShip.sender;
-            const receiver = friendShip.receiver;
-            const standardSender = customizeUser.standardUser(sender);
-            const standardReceiver = customizeUser.standardUser(receiver);
-            friendShip.sender = standardSender;
-            friendShip.receiver = standardReceiver;
-
-            return {
-                errCode: 0,
-                message: 'Find success',
-                data: friendShip
-            }
-        }
+const updateUserBookMark = async (userId, bookId) => {
+  try {
+    const bookMark = await BookMark.find({
+      userId: userId,
+      bookId: bookId,
+    })
+    if (bookMark) {
+      const result = await BookMark.deleteOne({
+        userId: userId,
+        bookId: bookId,
+      })
+      if (!result) {
         return {
-            errCode: 1,
-            message: 'Not found'
+          status: 500,
+          message: 'Error updating user book mark',
         }
-    } catch (error) {
-        throw new error;
-    }
-}
-
-const acceptRequestAddFriend = async (user1Id, user2Id) => {
-    try {
-        const friendShipDB = await db.FriendShip.findOne({
-            where: {
-                user1Id,
-                user2Id,
-            },
-            raw: false,
-        });
-
-        if (friendShipDB && friendShipDB.status === STATUS_FRIENDSHIP.PENDING) {
-            friendShipDB.status = STATUS_FRIENDSHIP.RESOLVE;
-            await friendShipDB.save();
-            // xóa notification
-            await db.NotificationFriendShip.destroy({
-                where: {
-                    friendShipId: friendShipDB.id
-                }
-            });
-
-            return {
-                errCode: 0,
-                message: 'Accept success',
-            }
-        }
+      } else {
         return {
-            errCode: 1,
-            message: 'Not found'
+          status: 200,
+          message: 'Update user book mark success',
         }
-    } catch (error) {
-        throw new Error(error);
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'User book mark not found',
+      }
     }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
 }
+const getUserBookMark = async (userId) => {
+  try {
+    const bookMark = await BookMark.find({
+      userId: userId,
+    })
+    if (bookMark) {
+      return {
+        status: 200,
+        message: 'Get user book mark success',
+        data: bookMark,
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'User book mark not found',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const follow = async (userId, bookId) => {
+  try {
+    if (!userId || !bookId) {
+      return {
+        status: 400,
+        message: 'Missing required fields',
+      }
+    }
 
-const rejectFriendShip = async (user1Id, user2Id) => {
-    try {
-        const friendShipDB = await db.FriendShip.findOne({
-            where: {
-                [Op.or]: [
-                    {
-                        user1Id,
-                        user2Id
-                    },
-                    {
-                        user1Id: user2Id,
-                        user2Id: user1Id
-                    }
-                ]
-            },
-            raw: false,
-        });
-        if (friendShipDB && friendShipDB.status === STATUS_FRIENDSHIP.PENDING) {
-            friendShipDB.status = STATUS_FRIENDSHIP.REJECT;
-            friendShipDB.save();
+    let followList = await FollowList.findOne({ userId: userId })
 
-            // xóa notification
-            await db.NotificationFriendShip.destroy({
-                where: {
-                    friendShipId: friendShipDB.id
-                }
-            });
-
-            return {
-                errCode: 0,
-                message: 'Reject success',
-            }
-        }
+    if (!followList) {
+      const newFollowList = await FollowList.create({
+        userId: userId,
+        books: [bookId],
+      })
+      if (newFollowList)
         return {
-            errCode: 1,
-            message: 'Not found'
+          status: 200,
+          message: 'Follow book success',
         }
-    } catch (error) {
-        throw new Error(error);
+    } else {
+      if (!followList.books.includes(bookId)) {
+        followList.books.push(bookId)
+        await followList.save()
+      }
+
+      return {
+        status: 200,
+        message: 'Follow book success',
+      }
     }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
 }
 
-const unFriend = async (user1Id, user2Id) => {
-    try {
-        const friendShipDB = await db.FriendShip.findOne({
-            where: {
-                [Op.or]: [
-                    {
-                        user1Id,
-                        user2Id
-                    },
-                    {
-                        user1Id: user2Id,
-                        user2Id: user1Id
-                    }
-                ]
-            },
-            raw: false,
-        });
-        if (friendShipDB && friendShipDB.status === STATUS_FRIENDSHIP.RESOLVE) {
-            friendShipDB.status = STATUS_FRIENDSHIP.OLD_FRIEND;
-            friendShipDB.save();
-            return {
-                errCode: 0,
-                message: 'Unfriend success',
-            }
-        }
+const getFollowList = async (userId) => {
+  try {
+    const followList = await FollowList.findOne({
+      userId: userId,
+    })
+    if (followList) {
+      return {
+        status: 200,
+        message: 'Get follow list success',
+        data: followList,
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'Follow list not found',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const getNotification = async (userId) => {
+  try {
+    const notification = await Notify.find({
+      userId: userId,
+    })
+    if (notification) {
+      return {
+        status: 200,
+        message: 'Get notification success',
+        data: notification,
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'Notification not found',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const updateNotificationStatus = async (userId, notifyId) => {
+  try {
+    let notification = await Notify.findOne({
+      userId: userId,
+      _id: notifyId,
+    })
+    if (notification) {
+      notification.status = 'READ'
+      const result = await notification.save()
+      if (result) {
         return {
-            errCode: 1,
-            message: 'Not found'
+          status: 200,
+          message: 'Update notification status success',
         }
-    } catch (error) {
-        throw new Error(error);
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'Notification not found',
+      }
     }
-}
-
-const createNofiticationFriendShip = async (friendShipId, content) => {
-    try {
-        const notification = await db.NotificationFriendShip.create({
-            friendShipId,
-            content,
-            status: 0,
-        });
-        return {
-            errCode: 0,
-            message: 'Create notification success',
-            data: notification
-        }
-    } catch (error) {
-        throw new error;
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
     }
+  }
 }
-
-const findAllNotifications = async (userId) => {
-    try {
-        const notifications = await db.NotificationFriendShip.findAll({
-            where: {
-                status: 0
-            },
-            include: [
-                {
-                    model: db.FriendShip,
-                    as: 'friendShip', // Đặt tên alias tương tự như đã định nghĩa trong mối quan hệ
-                    where: {
-                        user2Id: userId
-                    },
-                    include: [
-                        {
-                            model: db.User,
-                            as: 'sender',
-                            attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                        },
-                        {
-                            model: db.User,
-                            as: 'receiver',
-                            attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                        }
-                    ],
-                    attributes: ['id', 'status'],
-                },
-            ],
-            nest: true,
-            raw: true
-        });
-
-        if (notifications) {
-            const standardNotifications = notifications.map(notification => {
-                const friendShip = notification.friendShip;
-                const sender = friendShip.sender;
-                const receiver = friendShip.receiver;
-                const standardSender = customizeUser.standardUser(sender);
-                const standardReceiver = customizeUser.standardUser(receiver);
-                friendShip.sender = standardSender;
-                friendShip.receiver = standardReceiver;
-                return notification;
-            });
-            return {
-                errCode: 0,
-                message: 'Find all notification success',
-                data: standardNotifications
-            }
-        }
-
-        else
-            return {
-                errCode: 1,
-                message: 'Not found',
-                data: []
-            }
-    } catch (error) {
-        throw error;
-    }
-}
-
-const findAllInvitedFriend = async (userId) => {
-    try {
-        const notifications = await db.NotificationFriendShip.findAll({
-            include: [
-                {
-                    model: db.FriendShip,
-                    as: 'friendShip', // Đặt tên alias tương tự như đã định nghĩa trong mối quan hệ
-                    where: {
-                        user2Id: userId
-                    },
-                    include: [
-                        {
-                            model: db.User,
-                            as: 'sender',
-                            attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                        },
-                        {
-                            model: db.User,
-                            as: 'receiver',
-                            attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                        }
-                    ],
-                    attributes: ['id', 'status'],
-                },
-            ],
-            nest: true,
-            raw: true
-        });
-
-        if (notifications) {
-            const standardNotifications = notifications.map(notification => {
-                const friendShip = notification.friendShip;
-                const sender = friendShip.sender;
-                const receiver = friendShip.receiver;
-                const standardSender = customizeUser.standardUser(sender);
-                const standardReceiver = customizeUser.standardUser(receiver);
-                friendShip.sender = standardSender;
-                friendShip.receiver = standardReceiver;
-                return notification;
-            });
-            return {
-                errCode: 0,
-                message: 'Find all notification success',
-                data: standardNotifications
-            }
-        }
-
-        else
-            return {
-                errCode: 1,
-                message: 'Not found',
-                data: []
-            }
-    } catch (error) {
-        throw new error;
-    }
-}
-
-const findAllSentInvitedFriend = async (userId) => {
-    try {
-        const notifications = await db.NotificationFriendShip.findAll({
-            include: [
-                {
-                    model: db.FriendShip,
-                    as: 'friendShip', // Đặt tên alias tương tự như đã định nghĩa trong mối quan hệ
-                    where: {
-                        user1Id: userId
-                    },
-                    include: [
-                        {
-                            model: db.User,
-                            as: 'sender',
-                            attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                        },
-                        {
-                            model: db.User,
-                            as: 'receiver',
-                            attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                        }
-                    ],
-                    attributes: ['id', 'status'],
-                },
-            ],
-            nest: true,
-            raw: true
-        });
-
-        if (notifications) {
-            const standardNotifications = notifications.map(notification => {
-                const friendShip = notification.friendShip;
-                const sender = friendShip.sender;
-                const receiver = friendShip.receiver;
-                const standardSender = customizeUser.standardUser(sender);
-                const standardReceiver = customizeUser.standardUser(receiver);
-                friendShip.sender = standardSender;
-                friendShip.receiver = standardReceiver;
-                return notification;
-            });
-            return {
-                errCode: 0,
-                message: 'Find all notification success',
-                data: standardNotifications
-            }
-        }
-    } catch (error) {
-        throw error;
-    }
-}
-
-const updateReadStatusNofificationFriend = async (ids) => {
-    try {
-        const result = await db.NotificationFriendShip.update(
-            {
-                status: true,
-            },
-            {
-                where: {
-                    id: {
-                        [Op.in]: ids,
-                    },
-                    status: false
-                }
-            }
-        )
-        if (result[0] > 0) {
-            return {
-                errCode: 0,
-                message: 'Update success',
-                data: result
-            }
-        }
-        return {
-            errCode: 1,
-            message: 'Update failed',
-            data: result
-        }
-    } catch (error) {
-        throw new Error(error);
-    }
-}
-
-const findFriendsLimit = async (userId, limit) => {
-    try {
-        limit *= 1;
-        const friends = await db.FriendShip.findAll({
-            where: {
-                [Op.or]: [
-                    {
-                        user1Id: userId,
-                        status: STATUS_FRIENDSHIP.RESOLVE
-                    },
-                    {
-                        user2Id: userId,
-                        status: STATUS_FRIENDSHIP.RESOLVE
-                    }
-                ]
-            },
-            attributes: ['id', 'status'],
-            include: [
-                {
-                    model: db.User,
-                    as: 'sender',
-                    attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                },
-                {
-                    model: db.User,
-                    as: 'receiver',
-                    attributes: ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline']
-                }
-            ],
-            nest: true,
-            raw: true,
-            order: [
-                ['updatedAt', 'DESC']
-            ],
-            limit: (limit === -1 ? null : limit)
-        });
-
-        const standardFriends = friends.map(friend => {
-            const sender = friend.sender;
-            const receiver = friend.receiver;
-            const standardUser1 = customizeUser.standardUser(sender);
-            const standardUser2 = customizeUser.standardUser(receiver);
-            friend.sender = standardUser1;
-            friend.receiver = standardUser2;
-            return friend;
-        })
-
-        if (friends)
-            return {
-                errCode: 0,
-                message: 'Find success',
-                data: standardFriends
-            }
-        return {
-            errCode: 1,
-            message: 'Not found',
-            data: []
-        }
-    } catch (error) {
-        throw new Error(error);
-    }
-}
-
-const getMany = async (ids) => {
-    const attributes = ['id', 'userName', 'phoneNumber', 'avatar', 'lastedOnline'];
-    try {
-        const users = await db.User.findAll({
-            where: {
-                id: {
-                    [Op.in]: ids
-                }
-            },
-            attributes: attributes,
-        });
-
-        const usersCustomizes = users.map(user => {
-            const base64 = Buffer.from(user.avatar, 'base64');
-            user.avatar = base64.toString();
-            return user;
-        });
-
-        return {
-            errCode: 0,
-            message: 'Find users with ids',
-            data: usersCustomizes
-        }
-    } catch (error) {
-        throw new Error(error);
-    }
-}
-
-const updateUserInfor = async (newInfor) => {
-    const { id, userName, gender, birthdate, coverImage, description, soundTrack } = newInfor;
-    try {
-        const userInfor = await db.ProfileContact.findOne({
-            where: {
-                userId: id
-            },
-            raw: false
-        })
-        const user = await db.User.findOne({
-            where: {
-                id
-            },
-            raw: false
-        });
-        if (user && userInfor) {
-            // Update user attributes if data is provided
-            if (userName) {
-                user.userName = userName;
-            }
-            if (gender !== null && gender !== undefined) {
-                userInfor.gender = gender;
-            }
-            if (birthdate) {
-                userInfor.birthdate = new Date(birthdate);
-            }
-            if (coverImage) {
-                userInfor.coverImage = coverImage;
-            }
-            if (description) {
-                userInfor.description = description;
-            }
-            if (soundTrack) {
-                userInfor.soundTrack = soundTrack;
-            }
-            // Save the updated user infor
-            const userData = await user.save();
-            const profileData = await userInfor.save();
-            const data = customizeUser.standardUser(userData.dataValues);
-            data.info = profileData.dataValues;
-
-
-            return {
-                errCode: 0,
-                message: 'Update user information successfully',
-                data: data
-            };
-        }
-        return {
-            errCode: 1,
-            message: 'User not found',
-            data: null
-        }
-    } catch (error) {
-        throw new Error(error);
-    }
-}
-
-const updateAvatar = async (userId, avatar) => {
-    try {
-        const user = await db.User.findOne({
-            where: {
-                id: userId
-            },
-            raw: false
-        });
-        if (user) {
-            user.avatar = avatar;
-            await user.save();
-            return {
-                errCode: 0,
-                message: 'Update avatar success',
-                data: user
-            }
-        }
-        return {
-            errCode: 1,
-            message: 'User not found'
-        }
-    } catch (error) {
-        throw error;
-    }
-}
-
-const updateOnline = async (userId, time) => {
-    try {
-        const user = await db.User.findOne({
-            where: {
-                id: userId
-            },
-            raw: false
-        });
-        if (user) {
-            user.lastedOnline = time;
-            await user.save();
-
-            const standardUser = customizeUser.standardUser(user.get({ plain: true }));
-
-
-            return {
-                errCode: 0,
-                message: 'Update online success',
-                data: standardUser
-            }
-        }
-        return {
-            errCode: 1,
-            message: 'User not found'
-        }
-    } catch (error) {
-        throw error;
-    }
-}
-
-const sendverifyEmail = async (email, userId) => {
-    try {
-        const user = await db.User.findOne({
-            where: {
-                id: userId
-            },
-            raw: false
-        });
-        const otp = Math.floor(Math.random() * 1000000);
-
-        const resEmail = await emailService.sendMailVerify(email, otp);
-        if (resEmail) {
-            user.code = otp;
-            await user.save();
-            return {
-                errCode: 0,
-                message: 'Send verify email success',
-            }
-        }
-        return {
-            errCode: 1,
-            message: 'Send verify email failed',
-        }
-    } catch (error) {
-        throw error;
-    }
-}
-
-const verifyEmail = async (email, code, userId) => {
-    try {
-        const user = await db.User.findOne({
-            where: {
-                id: userId
-            },
-            raw: false
-        });
-        if (user.code === code) {
-            user.email = email;
-            user.code = null;
-            user.emailActive = true;
-            await user.save();
-            return {
-                errCode: 0,
-                message: 'Verify email success',
-            }
-        }
-        return {
-            errCode: 1,
-            message: 'Verify email failed',
-        }
-    } catch (error) {
-        throw error;
-    }
-
-}
-
-
 module.exports = {
-    getAllUsers,
-    getUserById,
-    getUserByPhone,
-    newInfoContact,
-    getProfileByUserId,
-    getUserWithProfileById,
-    sendRequestAddFriendOrRecall,
-    findFriendShip,
-    acceptRequestAddFriend,
-    rejectFriendShip,
-    unFriend,
-    createNofiticationFriendShip,
-    findAllNotifications,
-    findAllInvitedFriend,
-    updateReadStatusNofificationFriend,
-    findFriendsLimit,
-    getMany,
-    updateUserInfor,
-    updateAvatar,
-    updateOnline,
-    findAllSentInvitedFriend,
-    sendverifyEmail,
-    verifyEmail
+  like,
+  read,
+  rate,
+  comment,
+  createUserBookMark,
+  updateUserBookMark,
+  getUserBookMark,
+  follow,
+  getFollowList,
+  getNotification,
+  updateNotificationStatus,
 }

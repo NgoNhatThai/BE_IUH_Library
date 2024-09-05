@@ -5,6 +5,7 @@ const CategoryModel = Schema(
   {
     name: String,
     desc: String,
+    image: String,
     status: {
       type: String,
       required: true,

@@ -5,17 +5,20 @@ import Chapter from '../config/nosql/models/chapter.model'
 import Author from '../config/nosql/models/author.model'
 import Category from '../config/nosql/models/category.model'
 import Major from '../config/nosql/models/major.model'
+import BookMark from '../config/nosql/models/book-mark.model'
+import Review from '../config/nosql/models/review.model'
+import Notify from '../config/nosql/models/notify.model'
+import FollowList from '../config/nosql/models/follow-list.model'
 import fs from 'fs'
 import path from 'path'
 import { PDFDocument } from 'pdf-lib'
 import pdfParse from 'pdf-parse'
 import pdfPoppler from 'pdf-poppler'
-import { exec } from 'child_process'
-import { title } from 'process'
+import gTTS from 'gtts'
 
 const create = async (book) => {
   try {
-    if (!book.title || !book.image) {
+    if (!book.title || !book.image || !book.type) {
       return {
         status: 400,
         message: 'Missing required fields',
@@ -52,20 +55,36 @@ const create = async (book) => {
     const imagePath = await cloudinary.uploader.upload(book.image, {
       public_id: book.title,
     })
-    const content = new Content({
-      bookId: book._id,
-      numberOfChapter: 0,
-      chapters: [],
-    })
-    const contentData = await Content.create(content)
     const bookData = new Book({
       ...book,
-      content: contentData._id,
       image: imagePath.secure_url,
       createDate: new Date(),
     })
     const data = await Book.create(bookData)
-    data.authorId = authorId
+
+    const content = new Content({
+      bookId: data._id,
+      numberOfChapter: 0,
+      chapters: [],
+    })
+
+    const contentData = await Content.create(content)
+
+    const bookUpdate = await Book.findById(data._id)
+    bookUpdate.content = contentData._id
+    await bookUpdate.save()
+
+    const review = new Review({
+      bookId: data._id,
+      totalLike: 0,
+      totalView: 0,
+      comments: [],
+      rate: 0,
+      rating: [],
+    })
+    const reviewResponse = await Review.create(review)
+    data.review = reviewResponse._id
+    await data.save()
 
     fs.unlinkSync(localImagePath)
 
@@ -81,7 +100,6 @@ const create = async (book) => {
     }
   }
 }
-
 const update = async (book) => {
   try {
     const data = await Book.update(book)
@@ -135,9 +153,24 @@ const uploadToCloudinary = async (filePath, resourceType = 'image') => {
     )
   })
 }
-
+const uploadMp3ToCloudinary = async (filePath) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader.upload(
+      filePath,
+      { resource_type: 'video' },
+      (error, result) => {
+        if (error) {
+          reject(error)
+        } else {
+          resolve(result.secure_url)
+        }
+      }
+    )
+  })
+}
 const addChapter = async (chapter) => {
   try {
+    // Check if chapter title is empty
     const content = await Content.findById(chapter.contentId)
     if (!chapter.title) {
       chapter.title = `Chapter ${
@@ -145,22 +178,50 @@ const addChapter = async (chapter) => {
       }`
     }
 
+    // Read PDF file
     const pdfFilePath = path.join('uploads', path.basename(chapter.file.path))
-
     const pdfData = fs.readFileSync(pdfFilePath)
 
+    // Parse PDF text
+    const pdfText = await pdfParse(pdfData)
+    const textPages = pdfText.text.split('\n\n')
+
+    const mp3Paths = []
+    let imagePaths = []
+
+    // Process each page, get json text and convert to mp3, upload to cloudinary, get link
+    const bookType = await getBookType(chapter.contentId)
+    if (bookType === 'VOICE') {
+      for (const [index, text] of textPages.entries()) {
+        const cleanText = text.trim()
+        if (cleanText.length === 0) {
+          console.warn(`Page ${index + 1} is empty or contains invalid text.`)
+          continue
+        }
+
+        const mp3FilePath = path.join('uploads', `page-${index + 1}.mp3`)
+        const gtts = new gTTS(cleanText, 'vi')
+
+        await new Promise((resolve, reject) => {
+          gtts.save(mp3FilePath, (err) => {
+            if (err) reject(err)
+            else resolve()
+          })
+        })
+        const result = await uploadMp3ToCloudinary(mp3FilePath)
+        mp3Paths.push(result)
+        fs.unlinkSync(mp3FilePath)
+      }
+    }
     const pdfDoc = await PDFDocument.load(pdfData)
     const numPages = pdfDoc.getPages().length
 
-    let imagePaths = []
-    let textPaths = []
-
+    // Convert PDF to images, upload to cloudinary, get link
     const options = {
       format: 'png',
       out_dir: path.dirname(pdfFilePath),
       out_prefix: path.basename(pdfFilePath, path.extname(pdfFilePath)),
     }
-
     await pdfPoppler.convert(pdfFilePath, options)
 
     const imageFiles = fs
@@ -177,13 +238,16 @@ const addChapter = async (chapter) => {
       fs.unlinkSync(imageFilePath)
     }
 
+    // Delete PDF file after processing
     fs.unlinkSync(pdfFilePath)
 
     const newChapter = new Chapter({
+      bookId: content.bookId,
       contentId: chapter.contentId,
       title: chapter.title,
-      text: textPaths,
+      text: textPages,
       images: imagePaths,
+      mp3s: mp3Paths,
       numberOfPage: numPages,
       status: 'ACTIVE',
     })
@@ -191,6 +255,9 @@ const addChapter = async (chapter) => {
     const chapterData = await Chapter.create(newChapter)
     content.numberOfChapter += 1
     const result = await content.save()
+
+    await sendAddedChapterNotification(chapterData, content.bookId)
+
     if (!result) {
       return {
         status: 500,
@@ -217,6 +284,7 @@ const getBookById = async (id) => {
       .populate('authorId')
       .populate('categoryId')
       .populate('majorId')
+
     return {
       status: 200,
       message: 'Get book by id success',
@@ -277,7 +345,16 @@ const getDetailBookById = async (id) => {
       .populate('authorId')
       .populate('categoryId')
       .populate('majorId')
-    const chapters = await Chapter.find({ contentId: data.content._id })
+      .populate({
+        path: 'review',
+        populate: {
+          path: 'comments',
+        },
+      })
+
+    const chapters = await Chapter.find({
+      contentId: data.content._id,
+    })
     data.content.chapters = chapters
 
     return {
@@ -292,6 +369,294 @@ const getDetailBookById = async (id) => {
     }
   }
 }
+const getBookType = async (contentId) => {
+  try {
+    const content = await Content.findById(contentId)
+    const book = await Book.findById(content.bookId)
+    if (!book) {
+      return null
+    }
+    return book.type
+  } catch (error) {
+    return null
+  }
+}
+const createUserBookMark = async (userId, bookId) => {
+  try {
+    const bookMark = await BookMark.findOne({
+      userId: userId,
+    })
+    if (bookMark) {
+      if (bookMark.books.includes(bookId)) {
+        return {
+          status: 400,
+          message: 'Book already bookmarked',
+        }
+      }
+      bookMark.books.push(bookId)
+      const data = await bookMark.save()
+      return {
+        status: 200,
+        message: 'Create user book mark success',
+        data: data,
+      }
+    } else {
+      const newBookMark = new BookMark({
+        userId: userId,
+        books: [bookId],
+      })
+      const data = await BookMark.create(newBookMark)
+      return {
+        status: 200,
+        message: 'Create user book mark success',
+        data: data,
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const updateUserBookMark = async (userId, bookId) => {
+  try {
+    const bookMark = await BookMark.findOne({
+      userId: userId,
+    })
+    if (bookMark) {
+      if (bookMark.books.includes(bookId)) {
+        bookMark.books = bookMark.books.filter((id) => id !== bookId)
+        const data = await bookMark.save()
+        return {
+          status: 200,
+          message: 'Update user book mark success',
+          data: data,
+        }
+      } else {
+        return {
+          status: 400,
+          message: 'Book not bookmarked',
+        }
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'User book mark not found',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const getUserBookMark = async (userId) => {
+  try {
+    const bookMark = await BookMark.findOne({
+      userId: userId,
+    })
+    if (bookMark) {
+      return {
+        status: 200,
+        message: 'Get user book mark success',
+        data: bookMark,
+      }
+    } else {
+      return {
+        status: 400,
+        message: 'User book mark not found',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const getTopViewedBooks = async () => {
+  try {
+    const books = await Book.find()
+      .populate('content')
+      .populate('authorId')
+      .populate('categoryId')
+      .populate('majorId')
+      .populate('review')
+      .sort({ 'content.totalView': -1 })
+      .limit(10)
+    return {
+      status: 200,
+      message: 'Get top viewed books success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const getDetailChapterById = async (id) => {
+  try {
+    const data = await Chapter.findById(id).lean()
+    const allChapters = await Chapter.find({
+      contentId: data.contentId,
+    })
+    data.allChapters = allChapters
+    return {
+      status: 200,
+      message: 'Get detail chapter by id success',
+      data: data,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const getRelatedBooks = async (id) => {
+  try {
+    const book = await Book.findById(id)
+    if (!book) {
+      return {
+        status: 404,
+        message: 'Book not found',
+      }
+    }
+
+    const books = await Book.find({
+      $or: [{ categoryId: book.categoryId }, { authorId: book.authorId }],
+      _id: { $ne: book._id },
+    })
+      .limit(10)
+      .lean()
+
+    return {
+      status: 200,
+      message: 'Get related books success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const findBooksByTextInput = async (text) => {
+  try {
+    const books = await Book.aggregate([
+      {
+        $lookup: {
+          from: 'authors', // Tên collection của Author
+          localField: 'authorId',
+          foreignField: '_id',
+          as: 'author',
+        },
+      },
+      {
+        $lookup: {
+          from: 'categories', // Tên collection của Category
+          localField: 'categoryId',
+          foreignField: '_id',
+          as: 'category',
+        },
+      },
+      {
+        $match: {
+          $or: [
+            { title: { $regex: text, $options: 'i' } },
+            { 'author.name': { $regex: text, $options: 'i' } },
+            { 'category.name': { $regex: text, $options: 'i' } },
+          ],
+        },
+      },
+      {
+        $project: {
+          title: 1,
+          author: { $arrayElemAt: ['$author.name', 0] },
+          category: { $arrayElemAt: ['$category.name', 0] },
+          image: 1,
+          type: 1,
+          createDate: 1,
+          price: 1,
+        },
+      },
+    ])
+
+    return {
+      status: 200,
+      message: 'Find books by text input success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const sendAddedChapterNotification = async (chapter, bookId) => {
+  console.log('sendAddedChapterNotification', chapter, bookId)
+  try {
+    const listFollowers = await FollowList.find({
+      books: { $in: [bookId] },
+    }).select('userId')
+
+    const book = await Book.findById(bookId)
+    if (!book) {
+      return {
+        status: 404,
+        message: 'Book not found',
+      }
+    }
+    console.log('listFollowers', listFollowers)
+
+    if (listFollowers) {
+      listFollowers.forEach(async (follower) => {
+        const notify = new Notify({
+          userId: follower.userId,
+          bookId: bookId,
+          chapterId: chapter._id,
+          message: `${book.title} đã có chương mới: ${chapter.title}`,
+          status: 'UNREAD',
+          createDate: new Date(),
+        })
+        console.log('notify', notify)
+        await Notify.create(notify)
+      })
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const getBookByCategory = async (categoryId) => {
+  try {
+    const books = await Book.find({ categoryId: categoryId })
+      .populate('content')
+      .populate('authorId')
+      .populate('categoryId')
+      .populate('majorId')
+      .populate('review')
+    return {
+      status: 200,
+      message: 'Get book by category success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+
 module.exports = {
   create,
   update,
@@ -300,4 +665,13 @@ module.exports = {
   getBookById,
   search,
   getDetailBookById,
+  getBookType,
+  createUserBookMark,
+  updateUserBookMark,
+  getUserBookMark,
+  getTopViewedBooks,
+  getDetailChapterById,
+  getRelatedBooks,
+  findBooksByTextInput,
+  getBookByCategory,
 }

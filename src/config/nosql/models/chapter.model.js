@@ -3,10 +3,12 @@ const { Schema } = mongoose
 
 const ChapterModel = Schema(
   {
+    bookId: Schema.Types.ObjectId,
     contentId: Schema.Types.ObjectId,
     title: String,
     text: [String],
     images: [String],
+    mp3s: [String],
     numberOfPage: Number,
     postDate: Date,
     updateDate: Date,

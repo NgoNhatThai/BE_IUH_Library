@@ -20,6 +20,10 @@ const BookModel = Schema(
       type: Schema.Types.ObjectId,
       ref: 'Content',
     },
+    review: {
+      type: Schema.Types.ObjectId,
+      ref: 'Review',
+    },
     limit: String,
     image: String,
     desc: String,
@@ -27,6 +31,11 @@ const BookModel = Schema(
     postDate: Date,
     updateDate: Date,
     price: Number,
+    type: {
+      type: String,
+      default: 'NORMAL',
+      enum: ['NORMAL', 'VOICE', 'IMAGE'],
+    },
     status: {
       type: String,
       default: 'PUBLISH',

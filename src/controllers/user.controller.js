@@ -1,365 +1,139 @@
+import { get } from 'lodash'
+import userService from '../services/user.service'
 
-import userService from '../services/user.service';
-
-// warning using
-const findAllUsers = async (req, res) => {
-    const response = await userService.getAllUsers();
-    return res.status(200).json(response);
+const like = async (req, res) => {
+  try {
+    const { userId, bookId } = req.body
+    const data = await userService.like(userId, bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
 }
 
-const findUserById = async (req, res, next) => {
-    const response = await userService.getUserById(req.query.id);
-    if (response)
-        return res.status(200).json(response);
-    next();
-}
-
-
-const findUserByPhone = async (req, res, next) => {
-    const response = await userService.getUserByPhone(req.query.phoneNumber);
-    if (response)
-        return res.status(200).json(response);
-    next();
-}
-
-const createInfoContact = async (req, res, next) => {
-    if (Object.keys(req.body).length === 0 || !req.body?.userId)
-        return res.status(200).json({
-            errCode: 1,
-            message: 'Missing required parameter'
-        })
-    const response = await userService.newInfoContact(req.body);
-    if (response)
-        return res.status(200).json(response);
-    next();
-}
-
-const getProfileByUserId = async (req, res, next) => {
-    try {
-        const response = await userService.getProfileByUserId(req.query.userId);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
+const read = async (req, res) => {
+  try {
+    const { bookId } = req.body
+    if (!bookId) {
+      res.status(400).send('Book id is required')
     }
+    const data = await userService.read(bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
 }
 
-const findUserWithProfileById = async (req, res, next) => {
-    const response = await userService.getUserWithProfileById(req.query.phoneNumber);
-    if (response)
-        return res.status(200).json(response);
-    next();
+const rate = async (req, res) => {
+  try {
+    const { userId, bookId, rating } = req.body
+    const data = await userService.rate(userId, bookId, rating)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
 }
 
-const sendRequestAddFriendOrRecall = async (req, res, next) => {
-    try {
-        const { userId, content } = req.body;
-        const user = req.user;
-        if (!user.id || !userId) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Missing required parameter'
-            })
-        };
-        if (user.id === userId) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Can not send request to yourself'
-            });
-        }
-        let response = await userService.sendRequestAddFriendOrRecall(user.id, userId, content);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
-
-    }
+const comment = async (req, res) => {
+  try {
+    const { userId, bookId, comment } = req.body
+    const data = await userService.comment(userId, bookId, comment)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
 }
 
-const findFriendShip = async (req, res, next) => {
-    try {
-        const { userId } = req.query;
-        const user = req.user;
-        if (!user?.id || !userId) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Missing required parameter'
-            })
-        }
-        let response = await userService.findFriendShip(user?.id, userId);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
-    }
+const createUserBookMark = async (req, res) => {
+  try {
+    const { userId, bookId } = req.body
+    const data = await userService.createUserBookMark(userId, bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+const updateUserBookMark = async (req, res) => {
+  try {
+    const { userId, bookId } = req.body
+    const data = await userService.updateUserBookMark(userId, bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
 }
 
-const acceptRequestAddFriend = async (req, res, next) => {
-    const { userId } = req.body;
-    const user = req.user;
+const getUserBookMark = async (req, res) => {
+  try {
+    const { userId } = req.query
     if (!userId) {
-        return res.status(200).json({
-            errCode: 1,
-            message: 'Missing required parameter'
-        })
+      return res.status(400).send('Bad request: Missing userId')
     }
-    let response = await userService.acceptRequestAddFriend(userId, user.id);
-    if (response)
-        return res.status(200).json(response);
-    next();
+    const data = await userService.getUserBookMark(userId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
 }
 
-const rejectFriendShip = async (req, res, next) => {
-    const { userId } = req.body;
-    const user = req.user;
+const follow = async (req, res) => {
+  try {
+    const { userId, bookId } = req.body
+    const data = await userService.follow(userId, bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
+const getFollowList = async (req, res) => {
+  try {
+    const { userId } = req.query
     if (!userId) {
-        return res.status(200).json({
-            errCode: 1,
-            message: 'Missing required parameter'
-        })
+      return res.status(400).send('User id is required')
     }
-    let response = await userService.rejectFriendShip(user.id, userId);
-    if (response)
-        return res.status(200).json(response);
-    next();
+    const data = await userService.getFollowList(userId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
 }
 
-const unFriend = async (req, res, next) => {
-    const { userId } = req.body;
-    const user = req.user;
+const getNotification = async (req, res) => {
+  try {
+    const { userId } = req.query
     if (!userId) {
-        return res.status(200).json({
-            errCode: 1,
-            message: 'Missing required parameter'
-        })
+      return res.status(400).send('User id is required')
     }
-    let response = await userService.unFriend(user.id, userId);
-    if (response)
-        return res.status(200).json(response);
-    next();
+    const data = await userService.getNotification(userId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
 }
 
-const findAllNotifications = async (req, res, next) => {
-    const user = req.user;
-    if (!user?.id) {
-        return res.status(200).json({
-            errCode: 1,
-            message: 'Missing required parameter'
-        })
+const updateNotificationStatus = async (req, res) => {
+  try {
+    const { userId, notifyId } = req.body
+    if (!userId || !notifyId) {
+      res.status(400).send('User id and notify id are required')
     }
-    let response = await userService.findAllNotifications(user.id);
-    if (response)
-        return res.status(200).json(response);
-    next();
-};
-
-const findAllInvitedFriend = async (req, res, next) => {
-    const user = req.user;
-    if (!user?.id) {
-        return res.status(200).json({
-            errCode: 1,
-            message: 'Missing required parameter'
-        })
-    }
-    let response = await userService.findAllInvitedFriend(user.id);
-    if (response)
-        return res.status(200).json(response);
-    next();
-};
-
-const updateNotification = async (req, res, next) => {
-    try {
-        const ids = req.body.ids;
-        if (!ids) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Missing required parameter'
-            })
-        }
-        let response = await userService.updateReadStatusNofificationFriend(ids);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
-    }
-};
-
-const findAllSentInvitedFriend = async (req, res, next) => {
-    const user = req.user;
-    if (!user?.id) {
-        return res.status(200).json({
-            errCode: 1,
-            message: 'Missing required parameter'
-        })
-    }
-    let response = await userService.findAllSentInvitedFriend(user.id);
-    if (response)
-        return res.status(200).json(response);
-    next();
-
+    const data = await userService.updateNotificationStatus(userId, notifyId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
 }
-
-const findFriendsLimit = async (req, res, next) => {
-    try {
-        const { limit } = req.query;
-        const userId = req.user.id;
-        if (!userId || !limit) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Missing required parameter'
-            })
-        }
-        let response = await userService.findFriendsLimit(userId, limit);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
-    }
-
-}
-
-const getMany = async (req, res, next) => {
-    try {
-        const ids = req.body.ids;
-        if (!ids) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Missing required parameter'
-            })
-        }
-        let response = await userService.getMany(ids);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
-    }
-}
-
-const updateUserInfor = async (req, res) => {
-    const id = req.user.id;
-    if (!id) {
-        return res.status(200).json({
-            errCode: 1,
-            message: 'Missing required parameter'
-        })
-    }
-    try {
-        const result = await userService.updateUserInfor({
-            ...req.body,
-            id
-        });
-        if (!result) {
-            return res.status(404).json({
-                errCode: 404,
-                message: 'User not found',
-                data: null
-            });
-        }
-        return res.status(200).json(result);
-    } catch (error) {
-        return res.status(500).json({
-            errCode: 500,
-            message: 'Internal server error',
-            error: error.message
-        });
-    }
-}
-
-const testAPI = async (req, res, next) => {
-    try {
-        return res.status(200).json({
-            message: 'Test API'
-        })
-    } catch (error) {
-        next(error);
-    }
-}
-
-const updateAvatar = async (req, res, next) => {
-    try {
-        const { avatar } = req.body;
-        const userId = req.user.id;
-        if (!userId || !avatar) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Missing required parameter'
-            })
-        }
-        let response = await userService.updateAvatar(userId, avatar);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
-    }
-
-}
-
-const updateOnline = async (req, res, next) => {
-    try {
-        const userId = req.user.id;
-        const time = req.body.time;
-        if (!userId) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Missing required parameter'
-            })
-        }
-        let response = await userService.updateOnline(userId, time);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
-    }
-}
-
-const sendverifyEmail = async (req, res, next) => {
-    try {
-        const { email } = req.body;
-        const userId = req.user.id;
-        if (!email) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Missing required parameter'
-            })
-        }
-        let response = await userService.sendverifyEmail(email, userId);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
-    }
-}
-
-const verifyEmail = async (req, res, next) => {
-    try {
-        const { code, email } = req.body;
-        const userId = req.user.id;
-        if (!code) {
-            return res.status(200).json({
-                errCode: 1,
-                message: 'Missing required parameter'
-            })
-        }
-        let response = await userService.verifyEmail(email, code, userId);
-        return res.status(200).json(response);
-    } catch (error) {
-        next(error);
-    }
-}
-
 module.exports = {
-    findAllUsers,
-    findUserById,
-    findUserByPhone,
-    createInfoContact,
-    getProfileByUserId,
-    findUserWithProfileById,
-    sendRequestAddFriendOrRecall,
-    findFriendShip,
-    acceptRequestAddFriend,
-    rejectFriendShip,
-    unFriend,
-    findAllNotifications,
-    findAllInvitedFriend,
-    updateNotification,
-    findFriendsLimit,
-    getMany,
-    testAPI,
-    updateUserInfor,
-    updateAvatar,
-    updateOnline,
-    findAllSentInvitedFriend,
-    sendverifyEmail,
-    verifyEmail
+  like,
+  read,
+  rate,
+  comment,
+  createUserBookMark,
+  updateUserBookMark,
+  getUserBookMark,
+  follow,
+  getFollowList,
+  getNotification,
+  updateNotificationStatus,
 }

@@ -16,7 +16,7 @@ const app = express()
 
 app.use(function (req, res, next) {
   const allowedOrigins = [
-    'http://localhost:8096',
+    'http://localhost:3024',
     'http://localhost:5500',
     'http://localhost:8081',
     'http://localhost:19006',

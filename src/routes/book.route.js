@@ -22,6 +22,19 @@ const InitRoutesBook = (router) => {
   router.route('/get-book-by-id/:id').get(bookController.getBookById)
   router.route('/search').get(bookController.search)
   router.route('/get-detail-book/:id').get(bookController.getDetailBookById)
+  router.route('/get-book-type').get(bookController.getBookType)
+  router.route('/get-book-review').get(bookController.getBookReview)
+  router.route('/get-top-views-book').get(bookController.getTopViewedBooks)
+  router
+    .route('/get-detail-chapter/:id')
+    .get(bookController.getDetailChapterById)
+  router.route('/get-related-books/:id').get(bookController.getRelatedBooks)
+  router
+    .route('/find-books-by-text-input')
+    .get(bookController.findBooksByTextInput)
+  router
+    .route('/get-book-by-category/:id')
+    .get(bookController.getBookByCategory)
 
   return router
 }

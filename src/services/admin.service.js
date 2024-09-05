@@ -1,6 +1,7 @@
 import Author from '../config/nosql/models/author.model'
 import Category from '../config/nosql/models/category.model'
 import Major from '../config/nosql/models/major.model'
+import Config from '../config/nosql/models/config-library.model'
 
 const createAuthor = async (author) => {
   try {
@@ -122,6 +123,45 @@ const getAllMajor = async () => {
     }
   }
 }
+const createLibraryConfig = async (config) => {
+  try {
+    const newConfig = new Config({
+      ...config,
+    })
+    const data = await Config.create(newConfig)
+    return {
+      status: 200,
+      message: 'Create config success',
+      data: data,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const getLibraryConfig = async (id) => {
+  try {
+    const config = await Config.findById(id).populate('categories')
+    if (!config) {
+      return {
+        status: 404,
+        message: 'Config not found',
+      }
+    }
+    return {
+      status: 200,
+      message: 'Get config success',
+      data: config,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 export default {
   createAuthor,
   updateAuthor,
@@ -130,4 +170,6 @@ export default {
   getAllAuthor,
   getAllCategory,
   getAllMajor,
+  createLibraryConfig,
+  getLibraryConfig,
 }
