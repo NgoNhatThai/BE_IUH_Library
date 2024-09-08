@@ -55,8 +55,8 @@ const createUserBookMark = async (req, res) => {
 }
 const updateUserBookMark = async (req, res) => {
   try {
-    const { userId, bookId } = req.body
-    const data = await userService.updateUserBookMark(userId, bookId)
+    const { updateData } = req.body
+    const data = await userService.updateUserBookMark(updateData)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
@@ -88,11 +88,11 @@ const follow = async (req, res) => {
 
 const getFollowList = async (req, res) => {
   try {
-    const { userId } = req.query
-    if (!userId) {
+    const { userId, pageIndex, pageSize } = req.query
+    if (!userId || !pageIndex || !pageSize) {
       return res.status(400).send('User id is required')
     }
-    const data = await userService.getFollowList(userId)
+    const data = await userService.getFollowList(userId, pageIndex, pageSize)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
@@ -124,6 +124,16 @@ const updateNotificationStatus = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+
+const getHotSearch = async (req, res) => {
+  try {
+    const data = await userService.getHotSearch()
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
 module.exports = {
   like,
   read,
@@ -136,4 +146,5 @@ module.exports = {
   getFollowList,
   getNotification,
   updateNotificationStatus,
+  getHotSearch,
 }

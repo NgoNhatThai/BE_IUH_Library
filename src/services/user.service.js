@@ -3,6 +3,7 @@ import Comment from '../config/nosql/models/comment.model'
 import BookMark from '../config/nosql/models/book-mark.model'
 import FollowList from '../config/nosql/models/follow-list.model'
 import Notify from '../config/nosql/models/notify.model'
+import HotSearch from '../config/nosql/models/hot-search.model'
 
 const like = async (userId, bookId) => {
   try {
@@ -17,6 +18,14 @@ const like = async (userId, bookId) => {
     })
     review.totalLike += 1
     const result = await review.save()
+
+    const bookMark = await BookMark.findOne({
+      userId: userId,
+      bookId: bookId,
+    })
+    bookMark.like = true
+    await bookMark.save()
+
     if (!result) {
       return {
         errCode: 500,
@@ -33,6 +42,7 @@ const like = async (userId, bookId) => {
     throw new Error(error)
   }
 }
+
 const read = async (bookId) => {
   try {
     const review = await Review.findOne({
@@ -58,6 +68,7 @@ const read = async (bookId) => {
     throw new Error(error)
   }
 }
+
 const rate = async (userId, bookId, rating) => {
   try {
     if (!userId || !bookId || !rating) {
@@ -80,6 +91,21 @@ const rate = async (userId, bookId, rating) => {
     review.rate = review.rating.reduce((a, b) => a + b) / review.rating.length
 
     const result = await review.save()
+
+    const bookMark = await BookMark.findOne({
+      userId: userId,
+      bookId: bookId,
+    })
+    if (!bookMark) {
+      return {
+        errCode: 404,
+        message:
+          'Book mark not found - Vui lòng gọi api update user book mark trước khi đánh giá để bookMark luôn luôn tồn tại !',
+      }
+    }
+    bookMark.rating = rating
+    await bookMark.save()
+
     if (!result) {
       return {
         errCode: 500,
@@ -96,6 +122,7 @@ const rate = async (userId, bookId, rating) => {
     throw new Error(error)
   }
 }
+
 const comment = async (userId, bookId, comment) => {
   try {
     if (!userId || !bookId || !comment) {
@@ -134,6 +161,7 @@ const comment = async (userId, bookId, comment) => {
     throw new Error(error)
   }
 }
+
 const createUserBookMark = async (userId, bookId) => {
   try {
     const bookMark = await BookMark.create({
@@ -152,32 +180,63 @@ const createUserBookMark = async (userId, bookId) => {
     }
   }
 }
-const updateUserBookMark = async (userId, bookId) => {
+
+const updateUserBookMark = async (updateData) => {
   try {
-    const bookMark = await BookMark.find({
+    const {
+      userId,
+      bookId,
+      lastReadChapterId,
+      lastReadChapterIndex,
+      readChapterIds,
+      like,
+      follow,
+      rating,
+      notes,
+      highLights,
+    } = updateData
+
+    let bookMark = await BookMark.findOne({
       userId: userId,
       bookId: bookId,
     })
-    if (bookMark) {
-      const result = await BookMark.deleteOne({
+
+    if (!bookMark) {
+      const newBookMark = await BookMark.create({
         userId: userId,
         bookId: bookId,
+        lastReadChapterId: lastReadChapterId || undefined,
+        lastReadChapterIndex: lastReadChapterIndex || undefined,
+        readChapterIds: readChapterIds || undefined,
+        like: like || undefined,
+        follow: follow || undefined,
+        rating: rating || undefined,
+        notes: notes || undefined,
+        highLights: highLights || undefined,
       })
-      if (!result) {
-        return {
-          status: 500,
-          message: 'Error updating user book mark',
-        }
-      } else {
-        return {
-          status: 200,
-          message: 'Update user book mark success',
-        }
+      return {
+        status: 200,
+        message: 'Create BookMark successfully',
+        data: newBookMark,
       }
     } else {
+      if (lastReadChapterId !== undefined)
+        bookMark.lastReadChapterId = lastReadChapterId
+      if (lastReadChapterIndex !== undefined)
+        bookMark.lastReadChapterIndex = lastReadChapterIndex
+      if (readChapterIds !== undefined) bookMark.readChapterIds = readChapterIds
+      if (like !== undefined) bookMark.like = like
+      if (follow !== undefined) bookMark.follow = follow
+      if (rating !== undefined) bookMark.rating = rating
+      if (notes !== undefined) bookMark.notes = notes
+      if (highLights !== undefined) bookMark.highLights = highLights
+
+      await bookMark.save()
+
       return {
-        status: 400,
-        message: 'User book mark not found',
+        status: 200,
+        message: 'Update BookMark successfully',
+        data: bookMark,
       }
     }
   } catch (error) {
@@ -187,6 +246,7 @@ const updateUserBookMark = async (userId, bookId) => {
     }
   }
 }
+
 const getUserBookMark = async (userId) => {
   try {
     const bookMark = await BookMark.find({
@@ -211,6 +271,7 @@ const getUserBookMark = async (userId) => {
     }
   }
 }
+
 const follow = async (userId, bookId) => {
   try {
     if (!userId || !bookId) {
@@ -236,6 +297,11 @@ const follow = async (userId, bookId) => {
       if (!followList.books.includes(bookId)) {
         followList.books.push(bookId)
         await followList.save()
+      } else {
+        return {
+          status: 400,
+          message: 'Book already followed',
+        }
       }
 
       return {
@@ -251,16 +317,22 @@ const follow = async (userId, bookId) => {
   }
 }
 
-const getFollowList = async (userId) => {
+const getFollowList = async (userId, pageIndex, pageSize) => {
   try {
     const followList = await FollowList.findOne({
       userId: userId,
     })
+
+    const data = followList.books.slice(
+      pageIndex * pageSize,
+      (pageIndex + 1) * pageSize
+    )
+
     if (followList) {
       return {
         status: 200,
         message: 'Get follow list success',
-        data: followList,
+        data: data,
       }
     } else {
       return {
@@ -275,16 +347,21 @@ const getFollowList = async (userId) => {
     }
   }
 }
+
 const getNotification = async (userId) => {
   try {
     const notification = await Notify.find({
       userId: userId,
-    }).populate({
-      path: 'bookId',
-      populate: {
-        path: 'authorId',
-      },
     })
+      .populate({
+        path: 'bookId',
+        populate: {
+          path: 'authorId',
+        },
+      })
+      .sort({ createdAt: -1 })
+      .limit(10)
+
     if (notification) {
       return {
         status: 200,
@@ -304,6 +381,7 @@ const getNotification = async (userId) => {
     }
   }
 }
+
 const updateNotificationStatus = async (userId, notifyId) => {
   try {
     let notification = await Notify.findOne({
@@ -332,6 +410,25 @@ const updateNotificationStatus = async (userId, notifyId) => {
     }
   }
 }
+
+const getHotSearch = async () => {
+  try {
+    const trendingKeywords = await HotSearch.find()
+      .sort({ searchCount: -1 })
+      .limit(10)
+    return {
+      status: 200,
+      message: 'Get trending keywords success',
+      data: trendingKeywords,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+
 module.exports = {
   like,
   read,
@@ -344,4 +441,5 @@ module.exports = {
   getFollowList,
   getNotification,
   updateNotificationStatus,
+  getHotSearch,
 }

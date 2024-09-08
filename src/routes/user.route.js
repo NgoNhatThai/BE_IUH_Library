@@ -25,6 +25,7 @@ const IntRoutesUsers = (router) => {
   router
     .route('/update-notification-status')
     .post(userMiddleware.checkJWT, userController.updateNotificationStatus)
+  router.route('/get-hot-search').get(userController.getHotSearch)
   return router
 }
 
