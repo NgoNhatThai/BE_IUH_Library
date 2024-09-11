@@ -13,7 +13,6 @@ const checkJWT = async (req, res, next) => {
       message: 'Not authorization token',
     })
   }
-  // kiểm tra parse xem đúng không nữa nha
 
   try {
     let decoded = handleJwt.verify(token, secret)
