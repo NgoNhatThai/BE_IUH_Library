@@ -429,6 +429,55 @@ const getHotSearch = async () => {
   }
 }
 
+const checkFollowBook = async (userId, bookId) => {
+  try {
+    const followList = await FollowList.findOne({
+      userId: userId,
+    })
+    if (followList && followList.books.includes(bookId)) {
+      return true
+    } else {
+      return false
+    }
+  } catch (error) {
+    return false
+  }
+}
+
+const unFollow = async (userId, bookId) => {
+  try {
+    let followList = await FollowList.findOne({ userId: userId })
+    if (!followList) {
+      return {
+        status: 400,
+        message: 'User has not followed any book yet',
+      }
+    }
+    if (!followList.books.includes(bookId)) {
+      return {
+        status: 404,
+        message: 'Book not found in follow list',
+      }
+    }
+
+    followList.books = followList.books.filter(
+      (book) => book.toString() !== bookId
+    )
+    const result = await followList.save()
+    if (result) {
+      return {
+        status: 200,
+        message: 'Unfollow book success',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+
 module.exports = {
   like,
   read,
@@ -442,4 +491,6 @@ module.exports = {
   getNotification,
   updateNotificationStatus,
   getHotSearch,
+  checkFollowBook,
+  unFollow,
 }

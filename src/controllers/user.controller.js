@@ -134,6 +134,29 @@ const getHotSearch = async (req, res) => {
   }
 }
 
+const checkFollowBook = async (req, res) => {
+  try {
+    const { userId, bookId } = req.query
+    if (!userId || !bookId) {
+      return res.status(400).send('User id and book id are required')
+    }
+    const data = await userService.checkFollowBook(userId, bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
+const unFollow = async (req, res) => {
+  try {
+    const { userId, bookId } = req.query
+    const data = await userService.unFollow(userId, bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
 module.exports = {
   like,
   read,
@@ -147,4 +170,6 @@ module.exports = {
   getNotification,
   updateNotificationStatus,
   getHotSearch,
+  checkFollowBook,
+  unFollow,
 }

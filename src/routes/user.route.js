@@ -26,6 +26,8 @@ const IntRoutesUsers = (router) => {
     .route('/update-notification-status')
     .post(userMiddleware.checkJWT, userController.updateNotificationStatus)
   router.route('/get-hot-search').get(userController.getHotSearch)
+  router.route('/check-follow-book').get(userController.checkFollowBook)
+  router.route('/un-follow').get(userController.unFollow)
   return router
 }
 
