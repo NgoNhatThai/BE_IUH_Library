@@ -321,6 +321,17 @@ const getFollowList = async (userId, pageIndex, pageSize) => {
   try {
     const followList = await FollowList.findOne({
       userId: userId,
+    }).populate({
+      path: 'books',
+      populate: {
+        path: 'authorId',
+      },
+      populate: {
+        path: 'categoryId',
+      },
+      populate: {
+        path: 'review',
+      },
     })
 
     const data = followList.books.slice(
