@@ -4,6 +4,8 @@ import BookMark from '../config/nosql/models/book-mark.model'
 import FollowList from '../config/nosql/models/follow-list.model'
 import Notify from '../config/nosql/models/notify.model'
 import HotSearch from '../config/nosql/models/hot-search.model'
+import ChapterComment from '../config/nosql/models/chapter-comment'
+import Chapter from '../config/nosql/models/chapter.model'
 
 const like = async (userId, bookId) => {
   try {
@@ -42,7 +44,6 @@ const like = async (userId, bookId) => {
     throw new Error(error)
   }
 }
-
 const read = async (bookId) => {
   try {
     const review = await Review.findOne({
@@ -68,7 +69,6 @@ const read = async (bookId) => {
     throw new Error(error)
   }
 }
-
 const rate = async (userId, bookId, rating) => {
   try {
     if (!userId || !bookId || !rating) {
@@ -122,7 +122,6 @@ const rate = async (userId, bookId, rating) => {
     throw new Error(error)
   }
 }
-
 const comment = async (userId, bookId, comment) => {
   try {
     if (!userId || !bookId || !comment) {
@@ -161,7 +160,6 @@ const comment = async (userId, bookId, comment) => {
     throw new Error(error)
   }
 }
-
 const createUserBookMark = async (userId, bookId) => {
   try {
     const bookMark = await BookMark.create({
@@ -180,7 +178,6 @@ const createUserBookMark = async (userId, bookId) => {
     }
   }
 }
-
 const updateUserBookMark = async (updateData) => {
   try {
     const {
@@ -246,7 +243,6 @@ const updateUserBookMark = async (updateData) => {
     }
   }
 }
-
 const getUserBookMark = async (userId) => {
   try {
     const bookMark = await BookMark.find({
@@ -271,7 +267,6 @@ const getUserBookMark = async (userId) => {
     }
   }
 }
-
 const follow = async (userId, bookId) => {
   try {
     if (!userId || !bookId) {
@@ -316,7 +311,6 @@ const follow = async (userId, bookId) => {
     }
   }
 }
-
 const getFollowList = async (userId, pageIndex, pageSize) => {
   try {
     const followList = await FollowList.findOne({
@@ -358,7 +352,6 @@ const getFollowList = async (userId, pageIndex, pageSize) => {
     }
   }
 }
-
 const getNotification = async (userId) => {
   try {
     const notification = await Notify.find({
@@ -392,7 +385,6 @@ const getNotification = async (userId) => {
     }
   }
 }
-
 const updateNotificationStatus = async (userId, notifyId) => {
   try {
     let notification = await Notify.findOne({
@@ -421,7 +413,6 @@ const updateNotificationStatus = async (userId, notifyId) => {
     }
   }
 }
-
 const getHotSearch = async () => {
   try {
     const trendingKeywords = await HotSearch.find()
@@ -439,7 +430,6 @@ const getHotSearch = async () => {
     }
   }
 }
-
 const checkFollowBook = async (userId, bookId) => {
   try {
     const followList = await FollowList.findOne({
@@ -454,7 +444,6 @@ const checkFollowBook = async (userId, bookId) => {
     return false
   }
 }
-
 const unFollow = async (userId, bookId) => {
   try {
     let followList = await FollowList.findOne({ userId: userId })
@@ -488,6 +477,36 @@ const unFollow = async (userId, bookId) => {
     }
   }
 }
+const commentInChapter = async (userId, chapterId, comment) => {
+  try {
+    if (!userId || !chapterId || !comment) {
+      return {
+        errCode: 409,
+        message: 'Missing required fields',
+      }
+    }
+    const newComment = await ChapterComment.create({
+      chapterId: chapterId,
+      user: userId,
+      content: comment,
+      postDate: new Date(),
+    })
+
+    const chapter = await Chapter.findOne({
+      _id: chapterId,
+    })
+    chapter.comments.push(newComment._id)
+    await chapter.save()
+
+    return {
+      errCode: 200,
+      message: 'Create comment in chapter success',
+      data: newComment,
+    }
+  } catch (error) {
+    throw new Error(error)
+  }
+}
 
 module.exports = {
   like,
@@ -504,4 +523,5 @@ module.exports = {
   getHotSearch,
   checkFollowBook,
   unFollow,
+  commentInChapter,
 }

@@ -350,6 +350,9 @@ const getDetailBookById = async (id) => {
         path: 'review',
         populate: {
           path: 'comments',
+          populate: {
+            path: 'user',
+          },
         },
       })
 
@@ -501,7 +504,7 @@ const getTopViewedBooks = async () => {
 }
 const getDetailChapterById = async (id) => {
   try {
-    const data = await Chapter.findById(id).lean()
+    const data = await Chapter.findById(id).populate('comments').lean()
     const allChapters = await Chapter.find({
       contentId: data.contentId,
     })

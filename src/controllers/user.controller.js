@@ -156,6 +156,20 @@ const unFollow = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const commentInChapter = async (req, res) => {
+  try {
+    const { userId, chapterId, comment } = req.body
+    if (!userId || !chapterId || !comment) {
+      return res
+        .status(400)
+        .send('User id, chapter id and comment are required')
+    }
+    const data = await userService.commentInChapter(userId, chapterId, comment)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 
 module.exports = {
   like,
@@ -172,4 +186,5 @@ module.exports = {
   getHotSearch,
   checkFollowBook,
   unFollow,
+  commentInChapter,
 }
