@@ -35,6 +35,7 @@ const InitRoutesBook = (router) => {
   router
     .route('/get-book-by-category/:id')
     .get(bookController.getBookByCategory)
+  router.route('/get-new-books').get(bookController.getNewBooks)
 
   return router
 }

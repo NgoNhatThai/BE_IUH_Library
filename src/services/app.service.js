@@ -2,7 +2,6 @@ import db from '../config/nosql/models/user.model'
 import customizeUser, { hashPassword } from '../ultils/customizeUser'
 import handleJwt from '../ultils/handleJwt'
 import { v4 as uuidv4 } from 'uuid'
-import { random_bg_color } from '../ultils/random'
 const host = process.env.BACKEND_URL
 
 import fs from 'fs'
@@ -33,7 +32,7 @@ const register = async ({ userName, studentCode, password: plainPassword }) => {
         message: 'Users student code is exists, Please use new another phone',
       }
     //create new user;
-    const avatar = random_bg_color()
+    const avatar = process.env.NONE_AVATAR_USER
     let refresh_token = uuidv4()
     let password = hashPassword(plainPassword)
     const user = new User({
@@ -41,7 +40,7 @@ const register = async ({ userName, studentCode, password: plainPassword }) => {
       studentCode,
       password,
       refresh_token,
-      avatar: Buffer.from(avatar, 'utf-8'),
+      avatar,
     })
     await user.save()
     if (user) {

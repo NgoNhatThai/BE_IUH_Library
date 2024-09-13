@@ -504,7 +504,12 @@ const getTopViewedBooks = async () => {
 }
 const getDetailChapterById = async (id) => {
   try {
-    const data = await Chapter.findById(id).populate('comments').lean()
+    const data = await Chapter.findById(id)
+      .populate({
+        path: 'comments',
+        populate: 'user',
+      })
+      .lean()
     const allChapters = await Chapter.find({
       contentId: data.contentId,
     })
@@ -678,6 +683,28 @@ const getBookByCategory = async (categoryId) => {
     }
   }
 }
+const getNewBooks = async () => {
+  try {
+    const books = await Book.find()
+      .populate('content')
+      .populate('authorId')
+      .populate('categoryId')
+      .populate('majorId')
+      .populate('review')
+      .sort({ 'content.updateAt': -1 })
+      .limit(10)
+    return {
+      status: 200,
+      message: 'Get new books success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   create,
@@ -696,4 +723,5 @@ module.exports = {
   getRelatedBooks,
   findBooksByTextInput,
   getBookByCategory,
+  getNewBooks,
 }

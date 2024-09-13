@@ -417,7 +417,7 @@ const getHotSearch = async () => {
   try {
     const trendingKeywords = await HotSearch.find()
       .sort({ searchCount: -1 })
-      .limit(10)
+      .limit(25)
     return {
       status: 200,
       message: 'Get trending keywords success',
