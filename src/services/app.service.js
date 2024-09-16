@@ -7,6 +7,7 @@ const host = process.env.BACKEND_URL
 import fs from 'fs'
 import path from 'path'
 import User from '../config/nosql/models/user.model'
+import History from '../config/nosql/models/history.model'
 
 const boxes_path = path.resolve('public/data', 'backgroundUser.json')
 const rawdata = fs.readFileSync(boxes_path)
@@ -42,7 +43,23 @@ const register = async ({ userName, studentCode, password: plainPassword }) => {
       refresh_token,
       avatar,
     })
+
+    const userHistory = new History({
+      userId: user.id,
+      books: [],
+      lastReadBook: null,
+      like: [],
+      follow: [],
+      rating: [],
+      comment: [],
+    })
+
+    const userHistorySave = await History.create(userHistory)
+
+    user.historyId = userHistorySave._id
+
     await user.save()
+
     if (user) {
       let userAfterCustomize = customizeUser.standardUser(user)
       return {

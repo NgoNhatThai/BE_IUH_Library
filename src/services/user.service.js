@@ -6,6 +6,7 @@ import Notify from '../config/nosql/models/notify.model'
 import HotSearch from '../config/nosql/models/hot-search.model'
 import ChapterComment from '../config/nosql/models/chapter-comment'
 import Chapter from '../config/nosql/models/chapter.model'
+import History from '../config/nosql/models/history.model'
 
 const like = async (userId, bookId) => {
   try {
@@ -44,7 +45,7 @@ const like = async (userId, bookId) => {
     throw new Error(error)
   }
 }
-const read = async (bookId) => {
+const read = async (userId, bookId, chapterId) => {
   try {
     const review = await Review.findOne({
       bookId: bookId,
@@ -56,9 +57,47 @@ const read = async (bookId) => {
         message: 'Review not found',
       }
     }
-
     review.totalView += 1
-    const result = await review.save()
+    await review.save()
+
+    let history = await History.findOne({
+      userId: userId,
+    })
+    if (!history) {
+      history = await History.create({
+        userId: userId,
+        books: [
+          {
+            bookId: bookId,
+            lastReadChapterId: chapterId,
+            lastReadAt: new Date(),
+          },
+        ],
+        lastReadBook: bookId,
+      })
+      return {
+        status: 200,
+        message: 'Create history success',
+        data: history,
+      }
+    }
+    if (history.books.length > 0) {
+      history.books.push({
+        bookId: bookId,
+        lastReadChapterId: chapterId,
+        lastReadAt: new Date(),
+      })
+    } else {
+      history.books = [
+        {
+          bookId: bookId,
+          lastReadChapterId: chapterId,
+          lastReadAt: new Date(),
+        },
+      ]
+    }
+    history.lastReadBook = bookId
+    await history.save()
 
     return {
       status: 200,
@@ -97,14 +136,24 @@ const rate = async (userId, bookId, rating) => {
       bookId: bookId,
     })
     if (!bookMark) {
-      return {
-        errCode: 404,
-        message:
-          'Book mark not found - Vui lòng gọi api update user book mark trước khi đánh giá để bookMark luôn luôn tồn tại !',
-      }
+      await BookMark.create({
+        userId: userId,
+        bookId: bookId,
+        rating: rating,
+      })
     }
     bookMark.rating = rating
     await bookMark.save()
+
+    let history = await History.findOne({
+      userId: userId,
+    })
+    history.rating.push({
+      bookId: bookId,
+      rating: rating,
+      ratedAt: new Date(),
+    })
+    await history.save()
 
     if (!result) {
       return {
@@ -143,6 +192,16 @@ const comment = async (userId, bookId, comment) => {
 
     review.comments.push(newComment._id)
     const result = await review.save()
+
+    let history = await History.findOne({
+      userId: userId,
+    })
+    history.comment.push({
+      bookId: bookId,
+      content: comment,
+      createdAt: new Date(),
+    })
+    await history.save()
 
     if (!result) {
       return {
@@ -275,6 +334,23 @@ const follow = async (userId, bookId) => {
         message: 'Missing required fields',
       }
     }
+
+    let history = await History.findOne({
+      userId: userId,
+    })
+    if (!history) {
+      history = await History.create({
+        userId: userId,
+        books: [],
+        lastReadBook: null,
+        like: [],
+        follow: [bookId],
+        rating: [],
+        comment: [],
+      })
+    }
+    history.follow.push(bookId)
+    await history.save()
 
     let followList = await FollowList.findOne({ userId: userId })
 
@@ -507,6 +583,55 @@ const commentInChapter = async (userId, chapterId, comment) => {
     throw new Error(error)
   }
 }
+const updateHistory = async (userId, bookId, chapterId) => {
+  try {
+    const history = await History.findOne({
+      userId: userId,
+    })
+    if (!history) {
+      const newHistory = await History.create({
+        userId: userId,
+        books: [
+          {
+            bookId: bookId,
+            lastReadChapterId: chapterId,
+            lastReadAt: new Date(),
+          },
+        ],
+        lastReadBook: bookId,
+      })
+      return {
+        status: 200,
+        message: 'Create history success',
+        data: newHistory,
+      }
+    } else {
+      const book = history.books.find((book) => book.bookId === bookId)
+      if (!book) {
+        history.books.push({
+          bookId: bookId,
+          lastReadChapterId: chapterId,
+          lastReadAt: new Date(),
+        })
+      } else {
+        book.lastReadChapterId = chapterId
+        book.lastReadAt = new Date()
+      }
+      history.lastReadBook = bookId
+      await history.save()
+      return {
+        status: 200,
+        message: 'Update history success',
+        data: history,
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   like,
@@ -524,4 +649,5 @@ module.exports = {
   checkFollowBook,
   unFollow,
   commentInChapter,
+  updateHistory,
 }
