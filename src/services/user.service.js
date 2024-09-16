@@ -389,37 +389,32 @@ const follow = async (userId, bookId) => {
 }
 const getFollowList = async (userId, pageIndex, pageSize) => {
   try {
-    const followList = await FollowList.findOne({
-      userId: userId,
-    }).populate({
+    const followList = await FollowList.findOne({ userId: userId }).populate({
       path: 'books',
-      populate: {
-        path: 'authorId',
-      },
-      populate: {
-        path: 'categoryId',
-      },
-      populate: {
-        path: 'review',
-      },
+      populate: [
+        { path: 'authorId' },
+        { path: 'categoryId' },
+        { path: 'majorId' },
+        { path: 'review' },
+      ],
     })
+
+    if (!followList) {
+      return {
+        status: 400,
+        message: 'Follow list not found',
+      }
+    }
 
     const data = followList.books.slice(
       pageIndex * pageSize,
       (pageIndex + 1) * pageSize
     )
 
-    if (followList) {
-      return {
-        status: 200,
-        message: 'Get follow list success',
-        data: data,
-      }
-    } else {
-      return {
-        status: 400,
-        message: 'Follow list not found',
-      }
+    return {
+      status: 200,
+      message: 'Get follow list success',
+      data: data,
     }
   } catch (error) {
     return {
@@ -428,6 +423,7 @@ const getFollowList = async (userId, pageIndex, pageSize) => {
     }
   }
 }
+
 const getNotification = async (userId) => {
   try {
     const notification = await Notify.find({
