@@ -10,7 +10,7 @@
     "generate-bg": "node src/config/nosql/seeders/background.seeders.js"
   },
   "dependencies": {
-    "@tensorflow/tfjs": "^4.21.0",
+    "@tensorflow/tfjs-node": "3.1.0",
     "axios": "0.15.3",
     "bcrypt": "^5.1.1",
     "bcryptjs": "^2.4.3",

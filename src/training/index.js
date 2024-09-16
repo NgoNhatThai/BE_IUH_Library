@@ -4,6 +4,7 @@ const History = require('../config/nosql/models/history.model')
 const Book = require('../config/nosql/models/book.model')
 const _ = require('lodash')
 const natural = require('natural')
+const fs = require('fs')
 
 require('dotenv').config()
 
@@ -186,9 +187,13 @@ async function trainModel() {
       console.log('Huấn luyện mô hình thành công.')
 
       // Lưu mô hình
-      const path = require('path')
-      const modelPath = path.resolve('./models/recommendation-model')
-      await model.save(`file://${modelPath}`)
+      //await model.save(`file://./models/recommendation-model`)
+
+      const modelJson = model.toJSON()
+      fs.writeFileSync(
+        '../BE_library_IUH/src/training/models/recommendation-model/model.json',
+        JSON.stringify(modelJson)
+      )
 
       console.log('Model đã được huấn luyện và lưu lại.')
     } else {
