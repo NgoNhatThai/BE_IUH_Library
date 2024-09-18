@@ -1,4 +1,4 @@
-const tf = require('@tensorflow/tfjs')
+const tf = require('@tensorflow/tfjs-node')
 const mongoose = require('mongoose')
 const History = require('../config/nosql/models/history.model')
 const Book = require('../config/nosql/models/book.model')
@@ -127,6 +127,16 @@ function createModel(inputShape) {
   return model
 }
 
+async function saveWeights(model) {
+  const weights = model.getWeights()
+  const weightsArray = weights.map((tensor) => tensor.arraySync())
+
+  // Lưu trọng số vào tệp JSON
+  fs.writeFileSync('weights.bin', JSON.stringify(weightsArray))
+
+  console.log('Trọng số đã được lưu vào weights.json')
+}
+
 // Hàm để huấn luyện model
 async function trainModel() {
   const data = await fetchTrainingData()
@@ -172,37 +182,29 @@ async function trainModel() {
     ])
     const labelTensor = tf.tensor2d(labels, [labels.length, 1])
 
-    // Load mô hình đã huấn luyện nếu có
-    let model = await loadModel()
-    if (!model) {
-      // Nếu mô hình không tồn tại, tạo mô hình mới và huấn luyện
-      model = createModel(inputTensor.shape[1])
+    model = createModel(inputTensor.shape[1])
 
-      await model.fit(inputTensor, labelTensor, {
-        epochs: 10,
-        batchSize: 32,
-        validationSplit: 0.2,
-      })
+    await model.fit(inputTensor, labelTensor, {
+      epochs: 10,
+      batchSize: 32,
+      validationSplit: 0.2,
+      verbose: 0,
+      callbacks: customCallback,
+    })
 
-      console.log('Huấn luyện mô hình thành công.')
+    console.log('Huấn luyện mô hình thành công.')
 
-      // Lưu mô hình
-      //await model.save(`file://./models/recommendation-model`)
+    // Lưu mô hình
+    await model.save(`file://`)
 
-      const modelJson = model.toJSON()
-      fs.writeFileSync(
-        '../BE_library_IUH/src/training/models/recommendation-model/model.json',
-        JSON.stringify(modelJson)
-      )
-
-      console.log('Model đã được huấn luyện và lưu lại.')
-    } else {
-      console.log('Sử dụng mô hình đã được tải.')
-      // Tiếp tục sử dụng mô hình đã tải cho dự đoán hoặc huấn luyện tiếp theo
-    }
-  } else {
-    console.error('Dữ liệu inputFeatures không hợp lệ.')
+    console.log('Model đã được huấn luyện và lưu lại.')
   }
+}
+
+const customCallback = {
+  onEpochEnd: async (epoch, logs) => {
+    console.log(`Epoch: ${epoch}, Loss: ${logs.loss}, Accuracy: ${logs.acc}`)
+  },
 }
 
 trainModel().catch((err) => console.error(err))
