@@ -23,6 +23,7 @@ app.use(function (req, res, next) {
     'http://localhost:8081',
     'http://localhost:19006',
     'http://localhost:8080',
+    'https://be-iuh-library.vercel.app/',
     '*',
   ]
   const origin = req.headers.origin
