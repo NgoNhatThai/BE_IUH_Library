@@ -10,6 +10,8 @@ import helmet from 'helmet'
 import connectNoSql from './src/config/nosql/config'
 import configRoutes from './src/routes/index'
 import handleException from './src/middleware/handleException.middleware'
+import cron from 'node-cron'
+import exec from 'child_process'
 require('dotenv').config()
 
 const app = express()
@@ -21,7 +23,7 @@ app.use(function (req, res, next) {
     'http://localhost:8081',
     'http://localhost:19006',
     'http://localhost:8080',
-    '',
+    '*',
   ]
   const origin = req.headers.origin
 
@@ -68,5 +70,17 @@ configRoutes(app)
 
 app.use(handleException.notFoundHandler)
 app.use(handleException.errorHandler)
+
+cron.schedule('0 0 * * *', () => {
+  console.log('Bắt đầu huấn luyện lại mô hình...')
+
+  exec('node src/training/index.js', (error, stdout, stderr) => {
+    if (error) {
+      console.error(`Lỗi khi huấn luyện lại: ${error}`)
+      return
+    }
+    console.log(`Kết quả: ${stdout}`)
+  })
+})
 
 module.exports = app

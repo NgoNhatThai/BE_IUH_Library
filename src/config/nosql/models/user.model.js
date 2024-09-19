@@ -29,6 +29,10 @@ const UserModel = Schema(
     totalSpend: Number,
     refresh_token: String,
     access_token: String,
+    historyId: {
+      type: Schema.Types.ObjectId,
+      ref: 'History',
+    },
     status: {
       type: String,
       default: 'ACTIVE',

@@ -12,6 +12,12 @@ const ChapterModel = Schema(
     numberOfPage: Number,
     postDate: Date,
     updateDate: Date,
+    comments: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'ChapterComment',
+      },
+    ],
     status: {
       type: String,
       required: true,

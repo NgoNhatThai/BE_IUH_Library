@@ -9,6 +9,7 @@ import BookMark from '../config/nosql/models/book-mark.model'
 import Review from '../config/nosql/models/review.model'
 import Notify from '../config/nosql/models/notify.model'
 import FollowList from '../config/nosql/models/follow-list.model'
+import HotSearch from '../config/nosql/models/hot-search.model'
 import fs from 'fs'
 import path from 'path'
 import { PDFDocument } from 'pdf-lib'
@@ -349,6 +350,9 @@ const getDetailBookById = async (id) => {
         path: 'review',
         populate: {
           path: 'comments',
+          populate: {
+            path: 'user',
+          },
         },
       })
 
@@ -500,7 +504,12 @@ const getTopViewedBooks = async () => {
 }
 const getDetailChapterById = async (id) => {
   try {
-    const data = await Chapter.findById(id).lean()
+    const data = await Chapter.findById(id)
+      .populate({
+        path: 'comments',
+        populate: 'user',
+      })
+      .lean()
     const allChapters = await Chapter.find({
       contentId: data.contentId,
     })
@@ -551,7 +560,7 @@ const findBooksByTextInput = async (text) => {
     const books = await Book.aggregate([
       {
         $lookup: {
-          from: 'authors', // Tên collection của Author
+          from: 'authors',
           localField: 'authorId',
           foreignField: '_id',
           as: 'author',
@@ -559,7 +568,7 @@ const findBooksByTextInput = async (text) => {
       },
       {
         $lookup: {
-          from: 'categories', // Tên collection của Category
+          from: 'categories',
           localField: 'categoryId',
           foreignField: '_id',
           as: 'category',
@@ -586,6 +595,24 @@ const findBooksByTextInput = async (text) => {
         },
       },
     ])
+
+    const hotSearch = await HotSearch.findOne({ keyword: text })
+    if (hotSearch) {
+      hotSearch.searchCount += 1
+      const trendingKeywords = await HotSearch.find()
+        .sort({ searchCount: -1 })
+        .limit(10)
+      if (trendingKeywords.includes(hotSearch)) {
+        hotSearch.isTrending = true
+      }
+      await hotSearch.save()
+    } else {
+      const newHotSearch = new HotSearch({
+        keyword: text,
+        searchCount: 1,
+      })
+      await HotSearch.create(newHotSearch)
+    }
 
     return {
       status: 200,
@@ -656,6 +683,28 @@ const getBookByCategory = async (categoryId) => {
     }
   }
 }
+const getNewBooks = async () => {
+  try {
+    const books = await Book.find()
+      .populate('content')
+      .populate('authorId')
+      .populate('categoryId')
+      .populate('majorId')
+      .populate('review')
+      .sort({ 'content.updateAt': -1 })
+      .limit(10)
+    return {
+      status: 200,
+      message: 'Get new books success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   create,
@@ -674,4 +723,5 @@ module.exports = {
   getRelatedBooks,
   findBooksByTextInput,
   getBookByCategory,
+  getNewBooks,
 }

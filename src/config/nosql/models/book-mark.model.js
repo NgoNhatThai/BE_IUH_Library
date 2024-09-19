@@ -1,14 +1,42 @@
+const { last } = require('lodash')
 const mongoose = require('mongoose')
 const { Schema } = mongoose
 
 const BookMarkModel = Schema(
   {
-    userId: Schema.Types.ObjectId,
-    bookId: Schema.Types.ObjectId,
-    lastReadedChapterId: Schema.Types.ObjectId,
-    readedChapterIds: [Schema.Types.ObjectId],
+    userId: {
+      type: Schema.Types.ObjectId,
+      index: true,
+    },
+    bookId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Book',
+      index: true,
+    },
+    lastReadChapterId: Schema.Types.ObjectId,
+    lastReadChapterIndex: Number,
+    readChapterIds: [Schema.Types.ObjectId],
     like: Boolean,
-    note: String,
+    follow: Boolean,
+    rating: {
+      type: Number,
+      min: 1,
+      max: 5,
+    },
+    notes: [
+      {
+        chapterId: Schema.Types.ObjectId,
+        index: Number,
+        content: String,
+      },
+    ],
+    highLights: [
+      {
+        chapterId: Schema.Types.ObjectId,
+        index: Number,
+        content: String,
+      },
+    ],
   },
   {
     timestamps: true,

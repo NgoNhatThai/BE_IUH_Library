@@ -13,11 +13,11 @@ const like = async (req, res) => {
 
 const read = async (req, res) => {
   try {
-    const { bookId } = req.body
+    const { userId, bookId, chapterId } = req.body
     if (!bookId) {
       res.status(400).send('Book id is required')
     }
-    const data = await userService.read(bookId)
+    const data = await userService.read(userId, bookId, chapterId)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
@@ -27,6 +27,9 @@ const read = async (req, res) => {
 const rate = async (req, res) => {
   try {
     const { userId, bookId, rating } = req.body
+    if (!userId || !bookId || !rating) {
+      return res.status(400).send('User id, book id and rating are required')
+    }
     const data = await userService.rate(userId, bookId, rating)
     res.status(200).json(data)
   } catch (error) {
@@ -55,8 +58,8 @@ const createUserBookMark = async (req, res) => {
 }
 const updateUserBookMark = async (req, res) => {
   try {
-    const { userId, bookId } = req.body
-    const data = await userService.updateUserBookMark(userId, bookId)
+    const { updateData } = req.body
+    const data = await userService.updateUserBookMark(updateData)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
@@ -88,11 +91,11 @@ const follow = async (req, res) => {
 
 const getFollowList = async (req, res) => {
   try {
-    const { userId } = req.query
-    if (!userId) {
+    const { userId, pageIndex, pageSize } = req.query
+    if (!userId || !pageIndex || !pageSize) {
       return res.status(400).send('User id is required')
     }
-    const data = await userService.getFollowList(userId)
+    const data = await userService.getFollowList(userId, pageIndex, pageSize)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
@@ -124,6 +127,53 @@ const updateNotificationStatus = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+
+const getHotSearch = async (req, res) => {
+  try {
+    const data = await userService.getHotSearch()
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
+const checkFollowBook = async (req, res) => {
+  try {
+    const { userId, bookId } = req.query
+    if (!userId || !bookId) {
+      return res.status(400).send('User id and book id are required')
+    }
+    const data = await userService.checkFollowBook(userId, bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
+const unFollow = async (req, res) => {
+  try {
+    const { userId, bookId } = req.query
+    const data = await userService.unFollow(userId, bookId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+const commentInChapter = async (req, res) => {
+  try {
+    const { userId, chapterId, comment } = req.body
+    if (!userId || !chapterId || !comment) {
+      return res
+        .status(400)
+        .send('User id, chapter id and comment are required')
+    }
+    const data = await userService.commentInChapter(userId, chapterId, comment)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
 module.exports = {
   like,
   read,
@@ -136,4 +186,8 @@ module.exports = {
   getFollowList,
   getNotification,
   updateNotificationStatus,
+  getHotSearch,
+  checkFollowBook,
+  unFollow,
+  commentInChapter,
 }

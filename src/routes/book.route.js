@@ -1,5 +1,6 @@
 import userMiddleware from '../middleware/user.middleware'
 import bookController from '../controllers/book.controller'
+import recommendController from '../controllers/recommend.controller'
 import upload from '../config/uploadConfig/index'
 
 const InitRoutesBook = (router) => {
@@ -35,6 +36,8 @@ const InitRoutesBook = (router) => {
   router
     .route('/get-book-by-category/:id')
     .get(bookController.getBookByCategory)
+  router.route('/get-new-books').get(bookController.getNewBooks)
+  router.route('/get-recommend-books').get(recommendController.recommendBook)
 
   return router
 }
