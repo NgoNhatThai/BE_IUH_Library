@@ -423,7 +423,6 @@ const getFollowList = async (userId, pageIndex, pageSize) => {
     }
   }
 }
-
 const getNotification = async (userId) => {
   try {
     const notification = await Notify.find({

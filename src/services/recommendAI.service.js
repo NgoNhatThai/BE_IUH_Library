@@ -1,4 +1,3 @@
-import fs from 'fs'
 import * as tf from '@tensorflow/tfjs-node'
 import History from '../config/nosql/models/history.model'
 import Book from '../config/nosql/models/book.model'
@@ -31,29 +30,12 @@ function processTextToVector(text) {
 
 const preprocessHistory = async (history) => {
   try {
-    let trainingData = []
     const userBookFeatures = []
-    const tokenizer = new natural.WordTokenizer()
 
     // Duyệt qua từng sách trong lịch sử người dùng
     for (let book of history.books) {
       const bookData = await Book.findById(book.bookId) // Lấy thông tin chi tiết về sách
 
-      // // Token hóa mô tả sách và giới hạn số lượng từ
-      // const descriptionTokens = tokenizer
-      //   .tokenize(bookData.desc ?? 'None')
-      //   .slice(0, 50) // Giới hạn mô tả tối đa 50 từ
-
-      // // Lấy danh mục và tác giả của sách
-      // const category = bookData.categoryId
-      // const author = bookData.authorId
-
-      // // Đưa các đặc trưng vào mảng kết quả
-      // userBookFeatures.push({
-      //   description: descriptionTokens.join(' '),
-      //   category,
-      //   author,
-      // })
       const descriptionVector = processTextToVector(bookData.desc)
       const categoryVector = processTextToVector(bookData.categoryId)
       const authorVector = processTextToVector(bookData.authorId)
@@ -67,7 +49,6 @@ const preprocessHistory = async (history) => {
       userBookFeatures.push(combinedFeatures)
     }
 
-    // Có thể bổ sung thêm các đặc trưng khác từ lịch sử nếu cần
     return userBookFeatures
   } catch (error) {
     return {
@@ -91,38 +72,46 @@ const filterUnreadBooks = (books, userHistory) => {
 
 const suggestBooks = async (userId) => {
   try {
-    const model = await loadModel() // Hàm này tải mô hình từ file hệ thống
+    const model = await loadModel() // Hàm tải mô hình từ file hệ thống
 
     const userHistory = await History.findOne({ userId }) // Lấy lịch sử của người dùng
 
     // Tiền xử lý lịch sử thành dạng đầu vào cho mô hình
     const inputFeatures = await preprocessHistory(userHistory)
 
-    console.log('Preprocessed features:', inputFeatures)
-
     // Biến đổi các đặc trưng thành tensors
     const inputTensor = tf.tensor2d(inputFeatures, [
       inputFeatures.length,
       inputFeatures[0].length,
     ])
-    // const labelTensor = tf.tensor2d(labels, [labels.length, 1])
-
-    console.log('inputTensor shape:', inputTensor.shape)
 
     // Dự đoán sách từ mô hình
     const predictions = model.predict(inputTensor)
 
     // Chuyển đổi tensor dự đoán thành mảng
     const predictionsArray = await predictions.array()
-    console.log('Predictions:', predictionsArray)
 
     // Giải mã các dự đoán thành danh sách ID sách được đề xuất
-    // const recommendedBooks = decodePredictions(predictionsArray)
     const recommendedBooks = await suggestBooksBasedOnPredictions(
       predictionsArray
     )
 
-    return filterUnreadBooks(recommendedBooks, userHistory)
+    const suggestionIds = filterUnreadBooks(recommendedBooks, userHistory)
+    // Trả về danh sách theo ids được đề xuất
+
+    let books = await Promise.all(
+      suggestionIds.map(async (bookId) => {
+        const book = await Book.findById(bookId).populate([
+          { path: 'authorId' },
+          { path: 'categoryId' },
+          { path: 'majorId' },
+          { path: 'review' },
+        ])
+        return book
+      })
+    )
+
+    return books
   } catch (error) {
     console.error('Error suggesting books:', error.message)
     return {
@@ -132,7 +121,7 @@ const suggestBooks = async (userId) => {
   }
 }
 
-// Sau khi có kết quả, chúng ta cần giải mã dự đoán để lấy ID sách
+// Sau khi có kết quả, giải mã dự đoán để lấy ID sách
 const preprocessBookForComparison = async (bookId) => {
   const bookData = await Book.findById(bookId)
   const tokenizer = new natural.WordTokenizer()
@@ -187,12 +176,10 @@ const getSimilarBooks = (bookVectors, predictionVector) => {
 const suggestBooksBasedOnPredictions = async (predictions) => {
   const bookVectors = await prepareAllBookVectors() // Lấy vector của tất cả sách trong hệ thống
 
-  // Giả sử bạn có một predictionVector cho sách gợi ý
   const predictionVector = predictions[0] // Chọn vector phù hợp từ dự đoán
 
   const similarBooks = getSimilarBooks(bookVectors, predictionVector)
 
-  // Lọc các sách đã đọc (nếu cần) và trả về sách gợi ý
   return similarBooks.map(({ bookId }) => bookId)
 }
 
