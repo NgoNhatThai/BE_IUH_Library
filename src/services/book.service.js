@@ -540,6 +540,12 @@ const getRelatedBooks = async (id) => {
       $or: [{ categoryId: book.categoryId }, { authorId: book.authorId }],
       _id: { $ne: book._id },
     })
+      .populate([
+        { path: 'authorId' },
+        { path: 'categoryId' },
+        { path: 'majorId' },
+        { path: 'review' },
+      ])
       .limit(10)
       .lean()
 
@@ -563,7 +569,7 @@ const findBooksByTextInput = async (text) => {
           from: 'authors',
           localField: 'authorId',
           foreignField: '_id',
-          as: 'author',
+          as: 'authorId',
         },
       },
       {
@@ -571,7 +577,23 @@ const findBooksByTextInput = async (text) => {
           from: 'categories',
           localField: 'categoryId',
           foreignField: '_id',
-          as: 'category',
+          as: 'categoryId',
+        },
+      },
+      {
+        $lookup: {
+          from: 'majors',
+          localField: 'majorId',
+          foreignField: '_id',
+          as: 'majorId',
+        },
+      },
+      {
+        $lookup: {
+          from: 'reviews',
+          localField: '_id',
+          foreignField: 'bookId',
+          as: 'review',
         },
       },
       {
@@ -586,8 +608,13 @@ const findBooksByTextInput = async (text) => {
       {
         $project: {
           title: 1,
-          author: { $arrayElemAt: ['$author.name', 0] },
-          category: { $arrayElemAt: ['$category.name', 0] },
+          // author: { $arrayElemAt: ['$author.name', 0] },
+          // category: { $arrayElemAt: ['$category.name', 0] },
+          // major: { $arrayElemAt: ['$major.name', 0] },
+          authorId: 1,
+          categoryId: 1,
+          majorId: 1,
+          review: 1,
           image: 1,
           type: 1,
           createDate: 1,
@@ -595,6 +622,8 @@ const findBooksByTextInput = async (text) => {
         },
       },
     ])
+      .limit(10)
+      .exec()
 
     const hotSearch = await HotSearch.findOne({ keyword: text })
     if (hotSearch) {
