@@ -45,14 +45,14 @@ const verifyUser = async (req, res, next) => {
 }
 
 const login = async (req, res, next) => {
-  let { phoneNumber, password } = req.body
+  let { studentCode, password } = req.body
+  if (!studentCode || !password)
+    return res.status(200).json({
+      errCode: 1,
+      message: 'Missing parameter',
+    })
   try {
-    if (!password || !phoneNumber)
-      return res.status(200).json({
-        errCode: 1,
-        message: 'Missing parameter',
-      })
-    let rs = await appService.login(phoneNumber, password)
+    let rs = await appService.login(studentCode, password)
     return res.status(200).json(rs)
   } catch (error) {
     next(error)

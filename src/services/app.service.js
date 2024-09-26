@@ -27,15 +27,19 @@ const register = async ({ userName, studentCode, password: plainPassword }) => {
         studentCode,
       },
     })
-    if (userExists)
+    if (userExists) {
       return {
         errCode: 4,
-        message: 'Users student code is exists, Please use new another phone',
+        message:
+          'User with this student code already exists, please use another code',
       }
-    //create new user;
+    }
+
+    // Create new user;
     const avatar = process.env.NONE_AVATAR_USER
     let refresh_token = uuidv4()
     let password = hashPassword(plainPassword)
+
     const user = new User({
       userName,
       studentCode,
@@ -44,8 +48,12 @@ const register = async ({ userName, studentCode, password: plainPassword }) => {
       avatar,
     })
 
+    // Save the user first to get the user ID
+    const savedUser = await user.save()
+
+    // Create user history with the user ID
     const userHistory = new History({
-      userId: user.id,
+      userId: savedUser.id,
       books: [],
       lastReadBook: null,
       like: [],
@@ -54,14 +62,18 @@ const register = async ({ userName, studentCode, password: plainPassword }) => {
       comment: [],
     })
 
-    const userHistorySave = await History.create(userHistory)
+    // Save the user history
+    const userHistorySave = await userHistory.save()
 
-    user.historyId = userHistorySave._id
+    // Update user with the history ID
+    savedUser.historyId = userHistorySave._id
 
-    await user.save()
+    // Save the user again to update the history ID
+    await savedUser.save()
 
-    if (user) {
-      let userAfterCustomize = customizeUser.standardUser(user)
+    // Customize the user before returning
+    if (savedUser) {
+      let userAfterCustomize = customizeUser.standardUser(savedUser)
       return {
         errCode: 0,
         message: 'Created',
@@ -70,7 +82,7 @@ const register = async ({ userName, studentCode, password: plainPassword }) => {
     } else {
       return {
         errCode: 1,
-        message: 'Do not create',
+        message: 'User creation failed',
       }
     }
   } catch (error) {
@@ -108,32 +120,25 @@ const verifyUser = async (studentCode) => {
   }
 }
 
-const login = async (phoneNumber, password) => {
+const login = async (studentCode, password) => {
   try {
-    let userDB = await db.User.findOne({
-      where: {
-        phoneNumber: phoneNumber,
-      },
+    const user = await User.findOne({
+      studentCode: studentCode,
     })
-    if (userDB) {
-      const user = customizeUser.standardUser(userDB)
-      // validate user;
-      let checkPassword = customizeUser.checkPassword(password, userDB.password)
-      if (checkPassword) {
-        return {
-          errCode: 0,
-          message: 'Need verify user !',
-          data: user,
-        }
-      }
+    if (!user) {
       return {
-        errCode: 3,
-        message: 'Not equal password for user. Please check !',
+        errCode: 1,
+        message: 'Login fail, Please check your code !',
       }
+    }
+    let checkPassword = customizeUser.checkPassword(password, user.password)
+    if (checkPassword) {
+      let response = await verifyUser(studentCode)
+      return response
     } else {
       return {
         errCode: 2,
-        message: 'Hãy đăng ký tài khoản trước !',
+        message: 'Login fail, Please check your password !',
       }
     }
   } catch (error) {
