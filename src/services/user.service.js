@@ -349,7 +349,9 @@ const follow = async (userId, bookId) => {
         comment: [],
       })
     }
-    history.follow.push(bookId)
+    if (!history.follow.includes(bookId)) {
+      history.follow.push(bookId)
+    }
     await history.save()
 
     let followList = await FollowList.findOne({ userId: userId })
@@ -627,6 +629,30 @@ const updateHistory = async (userId, bookId, chapterId) => {
     }
   }
 }
+const getUserHistory = async (userId) => {
+  try {
+    const history = await History.findOne({
+      userId: userId,
+    })
+    if (!history) {
+      return {
+        status: 404,
+        message: 'History not found',
+      }
+    }
+
+    return {
+      status: 200,
+      message: 'Get history success',
+      data: history,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   like,
@@ -645,4 +671,5 @@ module.exports = {
   unFollow,
   commentInChapter,
   updateHistory,
+  getUserHistory,
 }

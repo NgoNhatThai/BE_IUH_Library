@@ -31,6 +31,9 @@ const IntRoutesUsers = (router) => {
   router
     .route('/comment-in-chapter')
     .post(userMiddleware.checkJWT, userController.commentInChapter)
+  router
+    .route('/get-user-history')
+    .get(userMiddleware.checkJWT, userController.getUserHistory)
   return router
 }
 

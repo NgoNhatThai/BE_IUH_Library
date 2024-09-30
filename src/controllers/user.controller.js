@@ -10,7 +10,6 @@ const like = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const read = async (req, res) => {
   try {
     const { userId, bookId, chapterId } = req.body
@@ -23,7 +22,6 @@ const read = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const rate = async (req, res) => {
   try {
     const { userId, bookId, rating } = req.body
@@ -36,7 +34,6 @@ const rate = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const comment = async (req, res) => {
   try {
     const { userId, bookId, comment } = req.body
@@ -46,7 +43,6 @@ const comment = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const createUserBookMark = async (req, res) => {
   try {
     const { userId, bookId } = req.body
@@ -65,7 +61,6 @@ const updateUserBookMark = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const getUserBookMark = async (req, res) => {
   try {
     const { userId } = req.query
@@ -78,7 +73,6 @@ const getUserBookMark = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const follow = async (req, res) => {
   try {
     const { userId, bookId } = req.body
@@ -88,7 +82,6 @@ const follow = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const getFollowList = async (req, res) => {
   try {
     const { userId, pageIndex, pageSize } = req.query
@@ -101,7 +94,6 @@ const getFollowList = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const getNotification = async (req, res) => {
   try {
     const { userId } = req.query
@@ -114,7 +106,6 @@ const getNotification = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const updateNotificationStatus = async (req, res) => {
   try {
     const { userId, notifyId } = req.body
@@ -127,7 +118,6 @@ const updateNotificationStatus = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const getHotSearch = async (req, res) => {
   try {
     const data = await userService.getHotSearch()
@@ -136,7 +126,6 @@ const getHotSearch = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const checkFollowBook = async (req, res) => {
   try {
     const { userId, bookId } = req.query
@@ -149,7 +138,6 @@ const checkFollowBook = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
 const unFollow = async (req, res) => {
   try {
     const { userId, bookId } = req.query
@@ -173,6 +161,18 @@ const commentInChapter = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const getUserHistory = async (req, res) => {
+  try {
+    const { userId } = req.query
+    if (!userId) {
+      return res.status(400).send('User id is required')
+    }
+    const data = await userService.getUserHistory(userId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 
 module.exports = {
   like,
@@ -190,4 +190,5 @@ module.exports = {
   checkFollowBook,
   unFollow,
   commentInChapter,
+  getUserHistory,
 }
