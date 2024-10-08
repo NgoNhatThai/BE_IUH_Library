@@ -28,7 +28,17 @@ const InitRouteAdmin = (route) => {
     .route('/create-config')
     .post(userMiddleware.checkJWT, adminController.createLibraryConfig)
   route.route('/get-config/:id').get(adminController.getLibraryConfig)
-
+  route
+    .route('/get-list-amount-request')
+    .get(userMiddleware.checkJWT, adminController.getListAmountRequest)
+  route
+    .route('/accept-amount-request')
+    .post(userMiddleware.checkJWT, adminController.acceptAmountRequest)
+  route.route('/get-banks').get(adminController.findAllBankFromThirdPartyVietQr)
+  route
+    .route('/config-bank-account')
+    .post(userMiddleware.checkJWT, adminController.configBankAccount)
+  route.route('/get-bank-account').get(adminController.getBankAccount)
   return route
 }
 module.exports = InitRouteAdmin

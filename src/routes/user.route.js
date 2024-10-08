@@ -34,6 +34,12 @@ const IntRoutesUsers = (router) => {
   router
     .route('/get-user-history')
     .get(userMiddleware.checkJWT, userController.getUserHistory)
+  router
+    .route('/request-amount')
+    .post(userMiddleware.checkJWT, userController.requestAmount)
+  router
+    .route('/buy-book')
+    .post(userMiddleware.checkJWT, userController.buyBook)
   return router
 }
 

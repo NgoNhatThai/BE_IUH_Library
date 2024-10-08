@@ -7,6 +7,7 @@ import HotSearch from '../config/nosql/models/hot-search.model'
 import ChapterComment from '../config/nosql/models/chapter-comment'
 import Chapter from '../config/nosql/models/chapter.model'
 import History from '../config/nosql/models/history.model'
+import RequestAmount from '../config/nosql/models/requestAmount.model'
 
 const like = async (userId, bookId) => {
   try {
@@ -653,6 +654,77 @@ const getUserHistory = async (userId) => {
     }
   }
 }
+const requestAmount = async (userId, amount, description, bankConfigId) => {
+  try {
+    const request = await RequestAmount.create({
+      userId: userId,
+      amount: amount,
+      description: description,
+      bankConfigId: bankConfigId,
+      date: new Date(),
+      status: 'PENDING',
+    })
+    return {
+      status: 200,
+      message: 'Request amount success',
+      data: request,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const buyBook = async (userId, bookId) => {
+  try {
+    const book = await BookMark.findById(bookId)
+    let userAmount = await Amount.findOne({ userId: userId })
+    let userBookMark = await BookMark.findOne({
+      userId: userId,
+      bookId: bookId,
+    })
+    if (!userBookMark) {
+      userBookMark = new BookMark({
+        userId: userId,
+        bookId: bookId,
+        like: false,
+        follow: false,
+        rating: 0,
+        notes: '',
+        highLights: [],
+      })
+    }
+    if (!userAmount) {
+      return {
+        status: 404,
+        message: 'User amount not found - Please recharge your account',
+      }
+    }
+    if (userAmount.total < book.price) {
+      return {
+        status: 400,
+        message: 'Not enough money in your account',
+      }
+    }
+    userBookMark.isBuy = true
+    await userBookMark.save()
+
+    userAmount.total -= book.price
+    userAmount.history.push({
+      amount: -Math.abs(book.price),
+      description: `${bookId}`,
+      remain: userAmount.total - Math.abs(book.price),
+      date: new Date(),
+    })
+    await userAmount.save()
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   like,
@@ -672,4 +744,6 @@ module.exports = {
   commentInChapter,
   updateHistory,
   getUserHistory,
+  requestAmount,
+  buyBook,
 }

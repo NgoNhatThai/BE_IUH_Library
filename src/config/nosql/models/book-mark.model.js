@@ -37,6 +37,7 @@ const BookMarkModel = Schema(
         content: String,
       },
     ],
+    isBuy: Boolean,
   },
   {
     timestamps: true,
