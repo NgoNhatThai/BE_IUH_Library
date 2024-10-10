@@ -121,16 +121,32 @@ const getAllMajor = async () => {
     }
   }
 }
-const createLibraryConfig = async (config) => {
+const createOrUpdateLibraryConfig = async (config) => {
   try {
-    const newConfig = new Config({
-      ...config,
-    })
-    const data = await Config.create(newConfig)
-    return {
-      status: 200,
-      message: 'Create config success',
-      data: data,
+    let existingConfig = await Config.findOne()
+
+    if (existingConfig) {
+      for (const key in config) {
+        if (config[key] !== undefined && config[key] !== existingConfig[key]) {
+          existingConfig[key] = config[key]
+        }
+      }
+      const updatedConfig = await existingConfig.save()
+      return {
+        status: 200,
+        message: 'Update config success',
+        data: updatedConfig,
+      }
+    } else {
+      const newConfig = new Config({
+        ...config,
+      })
+      const createdConfig = await newConfig.save()
+      return {
+        status: 201,
+        message: 'Create config success',
+        data: createdConfig,
+      }
     }
   } catch (error) {
     return {
@@ -139,9 +155,10 @@ const createLibraryConfig = async (config) => {
     }
   }
 }
-const getLibraryConfig = async (id) => {
+
+const getLibraryConfig = async () => {
   try {
-    const config = await Config.findById(id).populate('categories')
+    const config = await Config.findOne().populate('categories')
     if (!config) {
       return {
         status: 404,
@@ -160,14 +177,14 @@ const getLibraryConfig = async (id) => {
     }
   }
 }
+
 const getListAmountRequest = async () => {
   try {
-    const data = await AmountRequest.find().populate('bankConfigId')
-    return {
-      status: 200,
-      message: 'Get all amount request success',
-      data: data,
-    }
+    const data = await AmountRequest.find().populate([
+      { path: 'bankConfigId' },
+      { path: 'userId' },
+    ])
+    return data
   } catch (error) {
     return {
       status: 500,
@@ -208,7 +225,9 @@ const acceptAmountRequest = async (userId, requestId) => {
     userAmount.total += request.amount
 
     request.status = 'APPROVED'
-    request.save()
+    await request.save()
+
+    await userAmount.save()
 
     return {
       status: 200,
@@ -300,7 +319,7 @@ export default {
   getAllAuthor,
   getAllCategory,
   getAllMajor,
-  createLibraryConfig,
+  createOrUpdateLibraryConfig,
   getLibraryConfig,
   getListAmountRequest,
   acceptAmountRequest,

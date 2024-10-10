@@ -8,6 +8,8 @@ import ChapterComment from '../config/nosql/models/chapter-comment'
 import Chapter from '../config/nosql/models/chapter.model'
 import History from '../config/nosql/models/history.model'
 import RequestAmount from '../config/nosql/models/requestAmount.model'
+import Amount from '../config/nosql/models/amount.model'
+import User from '../config/nosql/models/user.model'
 
 const like = async (userId, bookId) => {
   try {
@@ -725,6 +727,48 @@ const buyBook = async (userId, bookId) => {
     }
   }
 }
+const getUserAmount = async (userId) => {
+  try {
+    const userAmount = await Amount.findOne({ userId: userId })
+    if (!userAmount) {
+      return {
+        status: 404,
+        message: 'User amount not found',
+      }
+    }
+    return {
+      status: 200,
+      message: 'Get user amount success',
+      data: userAmount,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const getUserInfo = async (userId) => {
+  try {
+    const user = await User.findById(userId).populate(['amount', 'historyId'])
+    if (!user) {
+      return {
+        status: 404,
+        message: 'User not found',
+      }
+    }
+    return {
+      status: 200,
+      message: 'Get user info success',
+      data: user,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   like,
@@ -746,4 +790,6 @@ module.exports = {
   getUserHistory,
   requestAmount,
   buyBook,
+  getUserAmount,
+  getUserInfo,
 }

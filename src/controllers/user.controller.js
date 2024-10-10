@@ -202,7 +202,30 @@ const buyBook = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
-
+const getUserAmount = async (req, res) => {
+  try {
+    const { userId } = req.query
+    if (!userId) {
+      return res.status(400).send('User id is required')
+    }
+    const data = await userService.getUserAmount(userId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+const getUserInfo = async (req, res) => {
+  try {
+    const { userId } = req.query
+    if (!userId) {
+      return res.status(400).send('User id is required')
+    }
+    const data = await userService.getUserInfo(userId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 module.exports = {
   like,
   read,
@@ -222,4 +245,6 @@ module.exports = {
   getUserHistory,
   requestAmount,
   buyBook,
+  getUserAmount,
+  getUserInfo,
 }

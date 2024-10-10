@@ -27,7 +27,7 @@ const InitRouteAdmin = (route) => {
   route
     .route('/create-config')
     .post(userMiddleware.checkJWT, adminController.createLibraryConfig)
-  route.route('/get-config/:id').get(adminController.getLibraryConfig)
+  route.route('/get-config').get(adminController.getLibraryConfig)
   route
     .route('/get-list-amount-request')
     .get(userMiddleware.checkJWT, adminController.getListAmountRequest)

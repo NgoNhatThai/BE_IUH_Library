@@ -120,11 +120,19 @@ const verifyUser = async (studentCode) => {
   }
 }
 
-const login = async (studentCode, password) => {
+const login = async (studentCode, password, email, loginWithManagerRole) => {
   try {
-    const user = await User.findOne({
-      studentCode: studentCode,
-    })
+    let user = null
+    if (loginWithManagerRole) {
+      user = await User.findOne({
+        email: email,
+      })
+    } else {
+      user = await User.findOne({
+        studentCode: studentCode,
+      })
+    }
+
     if (!user) {
       return {
         errCode: 1,
@@ -133,7 +141,8 @@ const login = async (studentCode, password) => {
     }
     let checkPassword = customizeUser.checkPassword(password, user.password)
     if (checkPassword) {
-      let response = await verifyUser(studentCode)
+      const code = user.studentCode
+      let response = await verifyUser(code)
       return response
     } else {
       return {

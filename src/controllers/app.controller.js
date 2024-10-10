@@ -45,14 +45,28 @@ const verifyUser = async (req, res, next) => {
 }
 
 const login = async (req, res, next) => {
-  let { studentCode, password } = req.body
-  if (!studentCode || !password)
-    return res.status(200).json({
-      errCode: 1,
-      message: 'Missing parameter',
-    })
+  let { studentCode, password, email, loginWithManagerRole } = req.body
+  if (loginWithManagerRole) {
+    if (!email || !password)
+      return res.status(200).json({
+        errCode: 1,
+        message: 'Missing parameter: email or password',
+      })
+  } else {
+    if (!studentCode || !password)
+      return res.status(200).json({
+        errCode: 1,
+        message: 'Missing parameter: studentCode or password',
+      })
+  }
+
   try {
-    let rs = await appService.login(studentCode, password)
+    let rs = await appService.login(
+      studentCode,
+      password,
+      email,
+      loginWithManagerRole
+    )
     return res.status(200).json(rs)
   } catch (error) {
     next(error)
