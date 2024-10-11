@@ -59,8 +59,11 @@ const create = async (book) => {
     const bookData = new Book({
       ...book,
       image: imagePath.secure_url,
+      price: book.price ? book.price : 0,
+      status: Number(book.price) > 0 ? 'UNPUBLISH' : 'PUBLISH',
       createDate: new Date(),
     })
+
     const data = await Book.create(bookData)
 
     const content = new Content({

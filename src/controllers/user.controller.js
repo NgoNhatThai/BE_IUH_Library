@@ -63,11 +63,12 @@ const updateUserBookMark = async (req, res) => {
 }
 const getUserBookMark = async (req, res) => {
   try {
-    const { userId } = req.query
-    if (!userId) {
-      return res.status(400).send('Bad request: Missing userId')
+    const { userId, bookId } = req.query
+
+    if (!userId || !bookId) {
+      return res.status(400).send('Bad request: Missing userId or book ID')
     }
-    const data = await userService.getUserBookMark(userId)
+    const data = await userService.getUserBookMark(userId, bookId)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)

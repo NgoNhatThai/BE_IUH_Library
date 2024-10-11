@@ -10,6 +10,7 @@ import History from '../config/nosql/models/history.model'
 import RequestAmount from '../config/nosql/models/requestAmount.model'
 import Amount from '../config/nosql/models/amount.model'
 import User from '../config/nosql/models/user.model'
+import Book from '../config/nosql/models/book.model'
 
 const like = async (userId, bookId) => {
   try {
@@ -305,10 +306,11 @@ const updateUserBookMark = async (updateData) => {
     }
   }
 }
-const getUserBookMark = async (userId) => {
+const getUserBookMark = async (userId, bookId) => {
   try {
-    const bookMark = await BookMark.find({
+    const bookMark = await BookMark.findOne({
       userId: userId,
+      bookId: bookId,
     })
     if (bookMark) {
       return {
@@ -317,9 +319,14 @@ const getUserBookMark = async (userId) => {
         data: bookMark,
       }
     } else {
+      const newBookMark = await BookMark.create({
+        userId: userId,
+        bookId: bookId,
+      })
       return {
-        status: 400,
-        message: 'User book mark not found',
+        status: 200,
+        message: 'Create new user book mark success',
+        data: newBookMark,
       }
     }
   } catch (error) {
@@ -680,12 +687,18 @@ const requestAmount = async (userId, amount, description, bankConfigId) => {
 }
 const buyBook = async (userId, bookId) => {
   try {
-    const book = await BookMark.findById(bookId)
+    const book = await Book.findById(bookId)
     let userAmount = await Amount.findOne({ userId: userId })
     let userBookMark = await BookMark.findOne({
       userId: userId,
       bookId: bookId,
     })
+    if (userBookMark.isBuy) {
+      return {
+        status: 400,
+        message: 'Book already bought',
+      }
+    }
     if (!userBookMark) {
       userBookMark = new BookMark({
         userId: userId,
@@ -716,10 +729,18 @@ const buyBook = async (userId, bookId) => {
     userAmount.history.push({
       amount: -Math.abs(book.price),
       description: `${bookId}`,
-      remain: userAmount.total - Math.abs(book.price),
+      remain: userAmount.total,
       date: new Date(),
     })
     await userAmount.save()
+    return {
+      status: 200,
+      message: 'Buy book success',
+      data: {
+        userAmount,
+        userBookMark,
+      },
+    }
   } catch (error) {
     return {
       status: 500,
@@ -736,6 +757,7 @@ const getUserAmount = async (userId) => {
         message: 'User amount not found',
       }
     }
+    userAmount.history.sort((a, b) => b.date - a.date)
     return {
       status: 200,
       message: 'Get user amount success',

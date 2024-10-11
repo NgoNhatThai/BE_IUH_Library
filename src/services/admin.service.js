@@ -184,6 +184,7 @@ const getListAmountRequest = async () => {
       { path: 'bankConfigId' },
       { path: 'userId' },
     ])
+    data.sort((a, b) => b.date - a.date)
     return data
   } catch (error) {
     return {
