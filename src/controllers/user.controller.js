@@ -227,6 +227,30 @@ const getUserInfo = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const getPendingRequest = async (req, res) => {
+  try {
+    const userId = req.query.userId
+    if (!userId) {
+      return res.status(400).send('User id is required')
+    }
+    const data = await userService.getPendingRequest(userId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+const cancelPendingRequest = async (req, res) => {
+  try {
+    const { userId, requestId } = req.body
+    if (!userId || !requestId) {
+      return res.status(400).send('User id and request id are required')
+    }
+    const data = await userService.cancelPendingRequest(userId, requestId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 module.exports = {
   like,
   read,
@@ -248,4 +272,6 @@ module.exports = {
   buyBook,
   getUserAmount,
   getUserInfo,
+  getPendingRequest,
+  cancelPendingRequest,
 }

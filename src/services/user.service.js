@@ -791,6 +791,52 @@ const getUserInfo = async (userId) => {
     }
   }
 }
+const getPendingRequest = async (userId) => {
+  try {
+    const requests = await RequestAmount.find({
+      userId: userId,
+      status: 'PENDING',
+    })
+    return {
+      status: 200,
+      message: 'Get pending request success',
+      data: requests,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+const cancelPendingRequest = async (userId, requestId) => {
+  try {
+    await RequestAmount.deleteOne(
+      {
+        userId: userId,
+        _id: requestId,
+        status: 'PENDING',
+      },
+      (err) => {
+        if (err) {
+          return {
+            status: 500,
+            message: 'Error deleting request',
+          }
+        }
+      }
+    )
+    return {
+      status: 200,
+      message: 'Cancel request success',
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   like,
@@ -814,4 +860,6 @@ module.exports = {
   buyBook,
   getUserAmount,
   getUserInfo,
+  getPendingRequest,
+  cancelPendingRequest,
 }

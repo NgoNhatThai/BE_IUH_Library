@@ -155,7 +155,6 @@ const createOrUpdateLibraryConfig = async (config) => {
     }
   }
 }
-
 const getLibraryConfig = async () => {
   try {
     const config = await Config.findOne().populate('categories')
@@ -177,7 +176,6 @@ const getLibraryConfig = async () => {
     }
   }
 }
-
 const getListAmountRequest = async () => {
   try {
     const data = await AmountRequest.find().populate([
