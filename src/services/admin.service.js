@@ -309,6 +309,35 @@ const getBankAccount = async () => {
     }
   }
 }
+const rejectAmountRequest = async (requestId) => {
+  try {
+    const request = await AmountRequest.findById(requestId)
+    if (!request) {
+      return {
+        status: 404,
+        message: 'Request not found',
+      }
+    }
+    if (request.status === 'REJECTED') {
+      return {
+        status: 400,
+        message: 'Request has been rejected',
+      }
+    }
+    request.status = 'REJECTED'
+    await request.save()
+    return {
+      status: 200,
+      message: 'Reject amount request success',
+      data: request,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 export default {
   createAuthor,
@@ -325,4 +354,5 @@ export default {
   findAllBankFromThirdPartyVietQr,
   configBankAccount,
   getBankAccount,
+  rejectAmountRequest,
 }

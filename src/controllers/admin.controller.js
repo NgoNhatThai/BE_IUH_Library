@@ -131,6 +131,18 @@ const getBankAccount = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const rejectAmountRequest = async (req, res) => {
+  try {
+    const { requestId } = req.body
+    if (!requestId) {
+      return res.status(400).send('Request id is required')
+    }
+    const data = await adminService.rejectAmountRequest(requestId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 
 export default {
   createAuthor,
@@ -147,4 +159,5 @@ export default {
   findAllBankFromThirdPartyVietQr,
   configBankAccount,
   getBankAccount,
+  rejectAmountRequest,
 }

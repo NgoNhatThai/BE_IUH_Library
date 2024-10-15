@@ -39,6 +39,9 @@ const InitRouteAdmin = (route) => {
     .route('/config-bank-account')
     .post(userMiddleware.checkJWT, adminController.configBankAccount)
   route.route('/get-bank-account').get(adminController.getBankAccount)
+  route
+    .route('/reject-amount-request')
+    .post(userMiddleware.checkJWT, adminController.rejectAmountRequest)
   return route
 }
 module.exports = InitRouteAdmin

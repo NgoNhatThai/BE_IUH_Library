@@ -3,21 +3,26 @@ import Amount from '../config/nosql/models/amount.model'
 import User from '../config/nosql/models/user.model'
 
 // Doanh thu theo trạng thái giao dịch
-const getTransactionOverview = async () => {
+const getTransactionOverview = async (startDate, endDate) => {
   try {
-    const totalTransactions = await AmountRequest.countDocuments()
+    const totalTransactions = await AmountRequest.countDocuments({
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    })
     const pendingTransactions = await AmountRequest.countDocuments({
       status: 'PENDING',
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
     })
     const approvedTransactions = await AmountRequest.countDocuments({
       status: 'APPROVED',
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
     })
     const rejectedTransactions = await AmountRequest.countDocuments({
       status: 'REJECTED',
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
     })
 
     return {
-      labels: ['Pending', 'Approved', 'Rejected'],
+      labels: ['Đang chờ', 'Đã duyệt', 'Từ chối'],
       datasets: [
         {
           label: 'Transactions Overview',
@@ -85,10 +90,15 @@ const getRevenueOverTime = async (startDate, endDate) => {
 }
 
 // Doanh thu người dùng cao nhất theo số tiền gửi
-const getTopUsersByDepositAmount = async () => {
+const getTopUsersByDepositAmount = async (startDate, endDate) => {
   try {
     const limit = 5
     const topUsers = await Amount.aggregate([
+      {
+        $match: {
+          date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+        },
+      },
       {
         $project: {
           userId: 1,
@@ -120,12 +130,13 @@ const getTopUsersByDepositAmount = async () => {
 }
 
 // Biểu đồ theo thời gian xét duyệt
-const getAverageProcessingTime = async () => {
+const getAverageProcessingTime = async (startDate, endDate) => {
   try {
     const processingTimes = await AmountRequest.aggregate([
       {
         $match: {
           status: { $in: ['APPROVED', 'REJECTED'] },
+          date: { $gte: new Date(startDate), $lte: new Date(endDate) },
         },
       },
       {

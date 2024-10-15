@@ -796,7 +796,7 @@ const getPendingRequest = async (userId) => {
     const requests = await RequestAmount.find({
       userId: userId,
       status: 'PENDING',
-    })
+    }).populate('bankConfigId')
     return {
       status: 200,
       message: 'Get pending request success',
@@ -811,21 +811,19 @@ const getPendingRequest = async (userId) => {
 }
 const cancelPendingRequest = async (userId, requestId) => {
   try {
-    await RequestAmount.deleteOne(
-      {
-        userId: userId,
-        _id: requestId,
-        status: 'PENDING',
-      },
-      (err) => {
-        if (err) {
-          return {
-            status: 500,
-            message: 'Error deleting request',
-          }
-        }
+    const result = await RequestAmount.deleteOne({
+      userId: userId,
+      _id: requestId,
+      status: 'PENDING',
+    })
+
+    if (result.deletedCount === 0) {
+      return {
+        status: 404,
+        message: 'No request found to delete',
       }
-    )
+    }
+
     return {
       status: 200,
       message: 'Cancel request success',
