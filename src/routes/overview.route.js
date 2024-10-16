@@ -8,7 +8,7 @@ const InitRouteOverview = (route) => {
     .route('/revenue-over-time')
     .get(userMiddleware.checkJWT, overviewService.getRevenueOverTime)
   route
-    .route('/top-users-by-deposit-amount')
+    .route('/top-users-by-deposit')
     .get(userMiddleware.checkJWT, overviewService.getTopUsersByDepositAmount)
   route
     .route('/average-processing-time')

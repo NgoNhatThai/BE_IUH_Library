@@ -53,6 +53,14 @@ const getTransactionOverview = async (startDate, endDate) => {
 // Doanh thu theo thời gian
 const getRevenueOverTime = async (startDate, endDate) => {
   try {
+    // Tạo danh sách các ngày từ startDate đến endDate
+    const daysArray = []
+    let currentDate = new Date(startDate)
+    while (currentDate <= new Date(endDate)) {
+      daysArray.push(currentDate.toISOString().split('T')[0]) // Định dạng 'YYYY-MM-DD'
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
     const revenue = await AmountRequest.aggregate([
       {
         $match: {
@@ -62,15 +70,22 @@ const getRevenueOverTime = async (startDate, endDate) => {
       },
       {
         $group: {
-          _id: { $month: '$date' },
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } }, // Nhóm theo ngày cụ thể
           totalAmount: { $sum: '$amount' },
         },
       },
-      { $sort: { _id: 1 } },
+      { $sort: { _id: 1 } }, // Sắp xếp theo ngày
     ])
 
-    const labels = revenue.map((item) => `Month ${item._id}`)
-    const data = revenue.map((item) => item.totalAmount)
+    // Tạo một object map doanh thu theo ngày
+    const revenueMap = revenue.reduce((acc, item) => {
+      acc[item._id] = item.totalAmount
+      return acc
+    }, {})
+
+    // Đảm bảo mỗi ngày đều có một cột, nếu không có dữ liệu thì set giá trị 0
+    const labels = daysArray
+    const data = daysArray.map((day) => revenueMap[day] || 0) // Nếu không có thì set 0
 
     return {
       labels,
@@ -93,23 +108,28 @@ const getRevenueOverTime = async (startDate, endDate) => {
 const getTopUsersByDepositAmount = async (startDate, endDate) => {
   try {
     const limit = 5
-    const topUsers = await Amount.aggregate([
+    const topUsers = await AmountRequest.aggregate([
       {
         $match: {
           date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+          status: 'APPROVED',
         },
       },
       {
-        $project: {
-          userId: 1,
-          totalAmount: '$total',
+        $group: {
+          _id: '$userId',
+          totalAmount: { $sum: '$amount' },
         },
       },
       { $sort: { totalAmount: -1 } },
       { $limit: limit },
     ])
 
-    const labels = topUsers.map((user) => user.userId)
+    const preLabels = topUsers.map((user) => user._id)
+    const users = await User.find({ _id: { $in: preLabels } }).select(
+      'userName'
+    )
+    const labels = users.map((user) => user.userName)
     const data = topUsers.map((user) => user.totalAmount)
 
     return {
@@ -182,7 +202,7 @@ const getUserDepositRate = async () => {
     const depositRate = (usersWithDeposits / totalUsers) * 100
 
     return {
-      labels: ['Users With Deposits', 'Total Users'],
+      labels: ['Người dùng đã nạp', 'Người dùng chưa nạp'],
       datasets: [
         {
           label: 'User Deposit Rate',
