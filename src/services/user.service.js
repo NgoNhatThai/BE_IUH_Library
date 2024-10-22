@@ -835,7 +835,24 @@ const cancelPendingRequest = async (userId, requestId) => {
     }
   }
 }
-
+const getBoughtBook = async (userId) => {
+  try {
+    const books = await BookMark.find({
+      userId: userId,
+      isBuy: true,
+    }).populate('bookId')
+    return {
+      status: 200,
+      message: 'Get bought book success',
+      data: books,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 module.exports = {
   like,
   read,
@@ -860,4 +877,5 @@ module.exports = {
   getUserInfo,
   getPendingRequest,
   cancelPendingRequest,
+  getBoughtBook,
 }

@@ -52,6 +52,9 @@ const IntRoutesUsers = (router) => {
   router
     .route('/cancel-pending-request')
     .post(userMiddleware.checkJWT, userController.cancelPendingRequest)
+  router
+    .route('/get-bought-book')
+    .get(userMiddleware.checkJWT, userController.getBoughtBook)
   return router
 }
 

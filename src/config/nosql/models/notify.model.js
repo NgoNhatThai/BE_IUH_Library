@@ -1,5 +1,6 @@
 const mongoose = require('mongoose')
 const Book = require('./book.model')
+const request = require('request')
 const { Schema } = mongoose
 
 const NotifyModel = Schema(
@@ -10,6 +11,7 @@ const NotifyModel = Schema(
       ref: Book,
     },
     chapterId: Schema.Types.ObjectId,
+    requestId: Schema.Types.ObjectId,
     message: String,
     status: {
       type: String,

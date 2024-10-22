@@ -659,7 +659,6 @@ const findBooksByTextInput = async (text) => {
   }
 }
 const sendAddedChapterNotification = async (chapter, bookId) => {
-  console.log('sendAddedChapterNotification', chapter, bookId)
   try {
     const listFollowers = await FollowList.find({
       books: { $in: [bookId] },
@@ -672,7 +671,6 @@ const sendAddedChapterNotification = async (chapter, bookId) => {
         message: 'Book not found',
       }
     }
-    console.log('listFollowers', listFollowers)
 
     if (listFollowers) {
       listFollowers.forEach(async (follower) => {
@@ -684,7 +682,6 @@ const sendAddedChapterNotification = async (chapter, bookId) => {
           status: 'UNREAD',
           createDate: new Date(),
         })
-        console.log('notify', notify)
         await Notify.create(notify)
       })
     }

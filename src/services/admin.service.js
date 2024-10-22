@@ -5,6 +5,7 @@ import Config from '../config/nosql/models/config-library.model'
 import AmountRequest from '../config/nosql/models/requestAmount.model'
 import Amount from '../config/nosql/models/amount.model'
 import BankAccount from '../config/nosql/models/bankAccount.model'
+import Notify from '../config/nosql/models/notify.model'
 import axios from 'axios'
 
 const createAuthor = async (author) => {
@@ -228,6 +229,16 @@ const acceptAmountRequest = async (userId, requestId) => {
 
     await userAmount.save()
 
+    // Send notification to user
+    const notify = new Notify({
+      userId: request.userId,
+      requestId: requestId,
+      message: `Yêu cầu nạp [${request.amount}] vào lúc [${request.date}] của bạn đã được duyệt`,
+      status: 'UNREAD',
+      createDate: new Date(),
+    })
+    await Notify.create(notify)
+
     return {
       status: 200,
       message: 'Accept amount request success',
@@ -326,6 +337,17 @@ const rejectAmountRequest = async (requestId) => {
     }
     request.status = 'REJECTED'
     await request.save()
+
+    // Send notification to user
+    const notify = new Notify({
+      userId: request.userId,
+      requestId: requestId,
+      message: `Yêu cầu nạp [${request.amount}] vào lúc [${request.createDate}] của bạn đã bị từ chối`,
+      status: 'UNREAD',
+      createDate: new Date(),
+    })
+    await Notify.create(notify)
+
     return {
       status: 200,
       message: 'Reject amount request success',
