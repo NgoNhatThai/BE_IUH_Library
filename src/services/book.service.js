@@ -19,12 +19,6 @@ import gTTS from 'gtts'
 
 const create = async (book) => {
   try {
-    if (!book.title || !book.image || !book.type) {
-      return {
-        status: 400,
-        message: 'Missing required fields',
-      }
-    }
     if (book.authorId) {
       const author = await Author.findById(book.authorId)
       if (!author) {
@@ -52,6 +46,7 @@ const create = async (book) => {
         }
       }
     }
+    console.log(book.image)
     const localImagePath = path.join('uploads/', path.basename(book.image))
     const imagePath = await cloudinary.uploader.upload(book.image, {
       public_id: book.title,

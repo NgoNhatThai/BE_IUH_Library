@@ -5,6 +5,12 @@ const create = async (req, res) => {
       ...req.body,
       image: req.file.path,
     }
+    if (!book.title || !book.image || !book.type) {
+      return res.status(400).send('Bad request: Missing fields')
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: 'File is required' })
+    }
     const data = await bookService.create(book)
     res.status(200).json(data)
   } catch (error) {
