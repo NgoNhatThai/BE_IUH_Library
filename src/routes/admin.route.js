@@ -1,5 +1,7 @@
 import adminController from '../controllers/admin.controller'
 import userMiddleware from '../middleware/user.middleware'
+import upload from '../config/uploadConfig/index'
+
 const InitRouteAdmin = (route) => {
   route
     .route('/create-author')
@@ -15,7 +17,11 @@ const InitRouteAdmin = (route) => {
 
   route
     .route('/create-category')
-    .post(userMiddleware.checkJWT, adminController.createCategory)
+    .post(
+      userMiddleware.checkJWT,
+      upload.single('image'),
+      adminController.createCategory
+    )
 
   route.route('/get-all-category').get(adminController.getAllCategory)
 

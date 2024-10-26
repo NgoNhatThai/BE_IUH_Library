@@ -1,6 +1,7 @@
 import AmountRequest from '../config/nosql/models/requestAmount.model'
 import Amount from '../config/nosql/models/amount.model'
 import User from '../config/nosql/models/user.model'
+import ViewHistory from '../config/nosql/models/view-history.model'
 
 // Doanh thu theo trạng thái giao dịch
 const getTransactionOverview = async (startDate, endDate) => {
@@ -20,6 +21,10 @@ const getTransactionOverview = async (startDate, endDate) => {
       status: 'REJECTED',
       date: { $gte: new Date(startDate), $lte: new Date(endDate) },
     })
+
+    const tableData = await AmountRequest.find({
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    }).populate('userId')
 
     return {
       labels: ['Đang chờ', 'Đã duyệt', 'Từ chối'],
@@ -44,6 +49,7 @@ const getTransactionOverview = async (startDate, endDate) => {
           borderWidth: 1,
         },
       ],
+      tableData,
     }
   } catch (error) {
     throw new Error(error.message)
@@ -86,6 +92,10 @@ const getRevenueOverTime = async (startDate, endDate) => {
     // Đảm bảo mỗi ngày đều có một cột, nếu không có dữ liệu thì set giá trị 0
     const labels = daysArray
     const data = daysArray.map((day) => revenueMap[day] || 0) // Nếu không có thì set 0
+    const tableData = await AmountRequest.find({
+      status: 'APPROVED',
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    }).populate('userId')
 
     return {
       labels,
@@ -98,6 +108,7 @@ const getRevenueOverTime = async (startDate, endDate) => {
           borderWidth: 1,
         },
       ],
+      tableData,
     }
   } catch (error) {
     throw new Error(error.message)
@@ -132,6 +143,32 @@ const getTopUsersByDepositAmount = async (startDate, endDate) => {
     const labels = users.map((user) => user.userName)
     const data = topUsers.map((user) => user.totalAmount)
 
+    const allUsers = await AmountRequest.aggregate([
+      {
+        $match: {
+          date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+          status: 'APPROVED',
+        },
+      },
+      {
+        $group: {
+          _id: '$userId',
+          totalAmount: { $sum: '$amount' },
+        },
+      },
+    ])
+
+    const tableData = await Promise.all(
+      allUsers.map(async (user) => {
+        const userInfo = await User.findById(user._id).select('userName')
+        return {
+          userId: user._id,
+          userName: userInfo.userName,
+          totalAmount: user.totalAmount,
+        }
+      })
+    )
+
     return {
       labels,
       datasets: [
@@ -143,6 +180,7 @@ const getTopUsersByDepositAmount = async (startDate, endDate) => {
           borderWidth: 1,
         },
       ],
+      tableData,
     }
   } catch (error) {
     throw new Error(error.message)
@@ -221,10 +259,208 @@ const getUserDepositRate = async () => {
   }
 }
 
+// Thống kê theo lượt xem trong khoảng thời gian
+const getTopBooksByViews = async (startDate, endDate) => {
+  try {
+    const topBooks = await ViewHistory.aggregate([
+      {
+        $match: {
+          date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+        },
+      },
+      {
+        $group: {
+          _id: '$bookId',
+          totalViews: { $sum: '$views' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'books',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'bookDetails',
+        },
+      },
+      {
+        $unwind: '$bookDetails',
+      },
+      {
+        $project: {
+          _id: 0,
+          bookId: '$_id',
+          title: '$bookDetails.title',
+          totalViews: 1,
+        },
+      },
+      {
+        $sort: {
+          totalViews: -1,
+        },
+      },
+      {
+        $limit: 10,
+      },
+    ])
+
+    const labels = topBooks.map((book) => book.title)
+    const data = topBooks.map((book) => book.totalViews)
+    const tableData = await ViewHistory.aggregate([
+      {
+        $match: {
+          date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+        },
+      },
+      {
+        $group: {
+          _id: '$bookId',
+          totalViews: { $sum: '$views' },
+        },
+      },
+      {
+        $lookup: {
+          from: 'books',
+          localField: '_id',
+          foreignField: '_id',
+          as: 'bookDetails',
+        },
+      },
+      {
+        $unwind: '$bookDetails',
+      },
+      {
+        $project: {
+          _id: 0,
+          bookId: '$_id',
+          title: '$bookDetails.title',
+          totalViews: 1,
+        },
+      },
+    ])
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Total Views',
+          data,
+          backgroundColor: 'rgba(75, 192, 192, 0.2)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1,
+        },
+      ],
+      tableData,
+    }
+  } catch (error) {
+    throw new Error(error.message)
+  }
+}
+
+const ExcelJS = require('exceljs')
+
+const exportExcelFile = async (startDate, endDate, type) => {
+  const workbook = new ExcelJS.Workbook()
+  let worksheet
+  let tableData
+
+  // Lấy tableData dựa trên loại thống kê
+  switch (type) {
+    case 'transaction':
+      const overview = await getTransactionOverview(startDate, endDate)
+      tableData = overview.tableData
+      worksheet = workbook.addWorksheet('Transaction Overview')
+      worksheet.columns = [
+        { header: 'Transaction ID', key: '_id', width: 20 },
+        { header: 'User Id', key: 'userId', width: 20 },
+        { header: 'User Name', key: 'userName', width: 20 },
+        { header: 'Amount', key: 'amount', width: 15 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Date', key: 'date', width: 20 },
+      ]
+      tableData.forEach((transaction) => {
+        worksheet.addRow({
+          _id: transaction._id,
+          userId: transaction.userId._id,
+          userName: transaction.userId.userName,
+          amount: transaction.amount,
+          status: transaction.status,
+          date: new Date(transaction.date).toLocaleString(),
+        })
+      })
+      break
+    case 'revenue':
+      const revenueTime = await getRevenueOverTime(startDate, endDate)
+      tableData = revenueTime.tableData
+      worksheet = workbook.addWorksheet('Revenue Over Time')
+      worksheet.columns = [
+        { header: 'Transaction ID', key: '_id', width: 20 },
+        { header: 'User Id', key: 'userId', width: 20 },
+        { header: 'User Name', key: 'userName', width: 20 },
+        { header: 'Amount', key: 'amount', width: 15 },
+        { header: 'Status', key: 'status', width: 15 },
+        { header: 'Date', key: 'date', width: 20 },
+      ]
+      tableData.forEach((revenue) => {
+        worksheet.addRow({
+          _id: revenue._id,
+          userId: revenue.userId._id,
+          userName: revenue.userId.userName,
+          amount: revenue.amount,
+          status: revenue.status,
+          date: new Date(revenue.date).toLocaleString(),
+        })
+      })
+      break
+    case 'topUsers':
+      const topUsers = await getTopUsersByDepositAmount(startDate, endDate)
+      tableData = topUsers.tableData
+      worksheet = workbook.addWorksheet('Top Users by Deposit Amount')
+      worksheet.columns = [
+        { header: 'User ID', key: 'userId', width: 20 },
+        { header: 'User Name', key: 'userName', width: 20 },
+        { header: 'Total Amount Deposited', key: 'totalAmount', width: 25 },
+      ]
+      tableData.forEach((user) => {
+        worksheet.addRow({
+          userId: user.userId,
+          userName: user.userName,
+          totalAmount: user.totalAmount,
+        })
+      })
+      break
+    case 'topView':
+      const topBooks = await getTopBooksByViews(startDate, endDate)
+      tableData = topBooks.tableData
+      worksheet = workbook.addWorksheet('Top Books by Views')
+      worksheet.columns = [
+        { header: 'Book ID', key: 'bookId', width: 30 },
+        { header: 'Book Title', key: 'title', width: 30 },
+        { header: 'Total Views', key: 'totalViews', width: 20 },
+      ]
+      tableData.forEach((book) => {
+        worksheet.addRow({
+          bookId: book.bookId,
+          title: book.title,
+          totalViews: book.totalViews,
+        })
+      })
+      break
+    default:
+      throw new Error('Invalid type provided')
+  }
+
+  // Thêm dữ liệu vào worksheet
+
+  const buffer = await workbook.xlsx.writeBuffer()
+  return buffer
+}
+
 export default {
   getTransactionOverview,
   getRevenueOverTime,
   getTopUsersByDepositAmount,
   getAverageProcessingTime,
   getUserDepositRate,
+  getTopBooksByViews,
+  exportExcelFile,
 }

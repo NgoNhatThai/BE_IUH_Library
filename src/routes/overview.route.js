@@ -16,6 +16,12 @@ const InitRouteOverview = (route) => {
   route
     .route('/user-deposit-rate')
     .get(userMiddleware.checkJWT, overviewService.getUserDepositRate)
+  route
+    .route('/top-view')
+    .get(userMiddleware.checkJWT, overviewService.getTopBooksByViews)
+  route
+    .route('/export-excel-file')
+    .get(userMiddleware.checkJWT, overviewService.exportExcelFile)
 
   return route
 }

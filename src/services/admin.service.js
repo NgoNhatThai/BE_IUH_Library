@@ -7,6 +7,9 @@ import Amount from '../config/nosql/models/amount.model'
 import BankAccount from '../config/nosql/models/bankAccount.model'
 import Notify from '../config/nosql/models/notify.model'
 import axios from 'axios'
+import cloudinary from '../config/cloudinary'
+import fs from 'fs'
+import path from 'path'
 
 const createAuthor = async (author) => {
   try {
@@ -58,10 +61,16 @@ const getAllAuthor = async () => {
 }
 const createCategory = async (category) => {
   try {
+    const localImagePath = path.join('uploads/', path.basename(category.image))
+    const imagePath = await cloudinary.uploader.upload(category.image, {
+      public_id: book.title,
+    })
     const newCategory = new Category({
       ...category,
+      image: imagePath.secure_url,
     })
     const data = await Category.create(newCategory)
+    fs.unlinkSync(localImagePath)
     return {
       status: 200,
       message: 'Create category success',

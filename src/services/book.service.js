@@ -46,7 +46,6 @@ const create = async (book) => {
         }
       }
     }
-    console.log(book.image)
     const localImagePath = path.join('uploads/', path.basename(book.image))
     const imagePath = await cloudinary.uploader.upload(book.image, {
       public_id: book.title,

@@ -11,6 +11,7 @@ import RequestAmount from '../config/nosql/models/requestAmount.model'
 import Amount from '../config/nosql/models/amount.model'
 import User from '../config/nosql/models/user.model'
 import Book from '../config/nosql/models/book.model'
+import ViewHistory from '../config/nosql/models/view-history.model'
 
 const like = async (userId, bookId) => {
   try {
@@ -102,6 +103,24 @@ const read = async (userId, bookId, chapterId) => {
     }
     history.lastReadBook = bookId
     await history.save()
+
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+
+    let viewHistoryByDate = await ViewHistory.findOne({
+      bookId: bookId,
+      date: today,
+    })
+    if (!viewHistoryByDate) {
+      viewHistoryByDate = await ViewHistory.create({
+        bookId: bookId,
+        date: today,
+        views: 1,
+      })
+    } else {
+      viewHistoryByDate.views += 1
+      await viewHistoryByDate.save()
+    }
 
     return {
       status: 200,

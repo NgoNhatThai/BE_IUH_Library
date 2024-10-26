@@ -27,7 +27,16 @@ const getAllAuthor = async (req, res) => {
 }
 const createCategory = async (req, res) => {
   try {
-    const category = req.body
+    const category = {
+      ...req.body,
+      image: req.file.path,
+    }
+    if (!req.file) {
+      return res.status(400).json({ message: 'File is required' })
+    }
+    if (!category.name) {
+      return res.status(400).send('Category name is required')
+    }
     const data = await adminService.createCategory(category)
     res.status(200).json(data)
   } catch (error) {
