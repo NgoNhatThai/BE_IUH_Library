@@ -151,8 +151,7 @@ const resetPassword = async (req, res, next) => {
 
 const changePassword = async (req, res, next) => {
   try {
-    const { oldPassword, newPassword } = req.body
-    const id = req.user.id
+    const { id, oldPassword, newPassword } = req.body
     if (!newPassword || !oldPassword || !id)
       return res.status(200).json({
         errCode: 1,

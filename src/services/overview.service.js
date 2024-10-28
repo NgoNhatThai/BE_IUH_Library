@@ -116,9 +116,8 @@ const getRevenueOverTime = async (startDate, endDate) => {
 }
 
 // Doanh thu người dùng cao nhất theo số tiền gửi
-const getTopUsersByDepositAmount = async (startDate, endDate) => {
+const getTopUsersByDepositAmount = async (startDate, endDate, limit) => {
   try {
-    const limit = 5
     const topUsers = await AmountRequest.aggregate([
       {
         $match: {
@@ -133,14 +132,18 @@ const getTopUsersByDepositAmount = async (startDate, endDate) => {
         },
       },
       { $sort: { totalAmount: -1 } },
-      { $limit: limit },
+      { $limit: Number(limit) },
     ])
 
     const preLabels = topUsers.map((user) => user._id)
     const users = await User.find({ _id: { $in: preLabels } }).select(
       'userName'
     )
-    const labels = users.map((user) => user.userName)
+    const userMap = new Map(
+      users.map((user) => [user._id.toString(), user.userName])
+    )
+
+    const labels = topUsers.map((user) => userMap.get(user._id.toString()))
     const data = topUsers.map((user) => user.totalAmount)
 
     const allUsers = await AmountRequest.aggregate([
@@ -158,16 +161,20 @@ const getTopUsersByDepositAmount = async (startDate, endDate) => {
       },
     ])
 
-    const tableData = await Promise.all(
-      allUsers.map(async (user) => {
-        const userInfo = await User.findById(user._id).select('userName')
-        return {
-          userId: user._id,
-          userName: userInfo.userName,
-          totalAmount: user.totalAmount,
-        }
-      })
-    )
+    const tableDataPromises = allUsers.map(async (user) => {
+      const userInfo = await User.findById(user._id).select('userName')
+      return {
+        userId: user._id,
+        userName: userInfo.userName,
+        totalAmount: user.totalAmount,
+      }
+    })
+
+    const tableData = await Promise.all(tableDataPromises)
+
+    const sortedTableData = tableData
+      .sort((a, b) => b.totalAmount - a.totalAmount)
+      .slice(0, Number(limit))
 
     return {
       labels,
@@ -180,7 +187,7 @@ const getTopUsersByDepositAmount = async (startDate, endDate) => {
           borderWidth: 1,
         },
       ],
-      tableData,
+      tableData: sortedTableData,
     }
   } catch (error) {
     throw new Error(error.message)
@@ -260,7 +267,7 @@ const getUserDepositRate = async () => {
 }
 
 // Thống kê theo lượt xem trong khoảng thời gian
-const getTopBooksByViews = async (startDate, endDate) => {
+const getTopBooksByViews = async (startDate, endDate, limit) => {
   try {
     const topBooks = await ViewHistory.aggregate([
       {
@@ -299,13 +306,14 @@ const getTopBooksByViews = async (startDate, endDate) => {
         },
       },
       {
-        $limit: 10,
+        $limit: Number(limit),
       },
     ])
 
     const labels = topBooks.map((book) => book.title)
     const data = topBooks.map((book) => book.totalViews)
-    const tableData = await ViewHistory.aggregate([
+
+    const allBooks = await ViewHistory.aggregate([
       {
         $match: {
           date: { $gte: new Date(startDate), $lte: new Date(endDate) },
@@ -337,6 +345,10 @@ const getTopBooksByViews = async (startDate, endDate) => {
         },
       },
     ])
+
+    const tableData = allBooks
+      .sort((a, b) => b.totalViews - a.totalViews)
+      .slice(0, Number(limit))
 
     return {
       labels,

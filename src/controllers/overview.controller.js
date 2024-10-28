@@ -31,13 +31,16 @@ const getRevenueOverTime = async (req, res) => {
 
 const getTopUsersByDepositAmount = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query
-    if (!startDate || !endDate) {
-      return res.status(400).send('Missing required fields: startDate, endDate')
+    const { startDate, endDate, limit } = req.query
+    if (!startDate || !endDate || !limit) {
+      return res
+        .status(400)
+        .send('Missing required fields: startDate, endDate or limit user')
     }
     const data = await overviewService.getTopUsersByDepositAmount(
       startDate,
-      endDate
+      endDate,
+      limit
     )
     res.status(200).json(data)
   } catch (error) {
@@ -72,11 +75,17 @@ const getUserDepositRate = async (req, res) => {
 
 const getTopBooksByViews = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query
-    if (!startDate || !endDate) {
-      return res.status(400).send('Missing required fields: startDate, endDate')
+    const { startDate, endDate, limit } = req.query
+    if (!startDate || !endDate || !limit) {
+      return res
+        .status(400)
+        .send('Missing required fields: startDate, endDate or limit')
     }
-    const data = await overviewService.getTopBooksByViews(startDate, endDate)
+    const data = await overviewService.getTopBooksByViews(
+      startDate,
+      endDate,
+      limit
+    )
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)

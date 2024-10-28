@@ -224,11 +224,8 @@ const updatePassword = async (id, phoneNumber, password) => {
 
 const changePassword = async (id, oldPassword, newPassword) => {
   try {
-    let userDB = await db.User.findOne({
-      where: {
-        id: id,
-      },
-      raw: false,
+    let userDB = await User.findOne({
+      _id: id,
     })
     if (userDB) {
       let checkPassword = customizeUser.checkPassword(
