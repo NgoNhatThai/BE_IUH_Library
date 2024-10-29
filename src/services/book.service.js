@@ -19,6 +19,7 @@ import gTTS from 'gtts'
 
 const create = async (book) => {
   try {
+    // Kiểm tra authorId, categoryId, và majorId
     if (book.authorId) {
       const author = await Author.findById(book.authorId)
       if (!author) {
@@ -46,10 +47,14 @@ const create = async (book) => {
         }
       }
     }
+
+    // Upload ảnh lên Cloudinary và xử lý đường dẫn ảnh
     const localImagePath = path.join('uploads/', path.basename(book.image))
     const imagePath = await cloudinary.uploader.upload(book.image, {
       public_id: book.title,
     })
+
+    // Tạo đối tượng sách (không lưu vào DB ngay)
     const bookData = new Book({
       ...book,
       image: imagePath.secure_url,
@@ -58,20 +63,19 @@ const create = async (book) => {
       createDate: new Date(),
     })
 
-    const data = await Book.create(bookData)
-
+    // Tạo đối tượng content và lưu content trước
     const content = new Content({
-      bookId: data._id,
+      bookId: bookData._id,
       numberOfChapter: 0,
       chapters: [],
     })
-
     const contentData = await Content.create(content)
 
-    const bookUpdate = await Book.findById(data._id)
-    bookUpdate.content = contentData._id
-    await bookUpdate.save()
+    // Gán contentId vào sách trước khi lưu
+    bookData.content = contentData._id
+    const data = await bookData.save()
 
+    // Tạo review và lưu
     const review = new Review({
       bookId: data._id,
       totalLike: 0,
@@ -84,6 +88,7 @@ const create = async (book) => {
     data.review = reviewResponse._id
     await data.save()
 
+    // Xóa ảnh tạm
     fs.unlinkSync(localImagePath)
 
     return {
@@ -479,14 +484,20 @@ const getUserBookMark = async (userId) => {
 }
 const getTopViewedBooks = async () => {
   try {
-    const books = await Book.find()
+    const topReviews = await Review.find()
+      .sort({ totalView: -1 })
+      .limit(10)
+      .select('_id bookId')
+
+    const bookIds = topReviews.map((review) => review.bookId)
+
+    const books = await Book.find({ _id: { $in: bookIds } })
       .populate('content')
       .populate('authorId')
       .populate('categoryId')
       .populate('majorId')
       .populate('review')
-      .sort({ 'content.totalView': -1 })
-      .limit(10)
+
     return {
       status: 200,
       message: 'Get top viewed books success',
@@ -714,8 +725,9 @@ const getNewBooks = async () => {
       .populate('categoryId')
       .populate('majorId')
       .populate('review')
-      .sort({ 'content.updateAt': -1 })
+      .sort({ createdAt: -1 })
       .limit(10)
+
     return {
       status: 200,
       message: 'Get new books success',

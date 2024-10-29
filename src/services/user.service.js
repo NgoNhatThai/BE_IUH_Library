@@ -80,11 +80,6 @@ const read = async (userId, bookId, chapterId) => {
         ],
         lastReadBook: bookId,
       })
-      return {
-        status: 200,
-        message: 'Create history success',
-        data: history,
-      }
     }
     if (history.books.length > 0) {
       history.books.push({

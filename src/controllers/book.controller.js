@@ -43,12 +43,8 @@ const remove = async (req, res) => {
 }
 const addChapter = async (req, res) => {
   try {
-    if (!req.file) {
-      res.status(400).send('Bad request')
-      return {
-        status: 400,
-        message: 'Missing PDF file',
-      }
+    if (!req.file || !req.body.contentId) {
+      res.status(400).send('Bad request: missing file or contentID')
     }
     const chapter = {
       ...req.body,

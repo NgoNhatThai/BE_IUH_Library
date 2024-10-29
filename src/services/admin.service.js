@@ -85,7 +85,8 @@ const createCategory = async (category) => {
 }
 const getAllCategory = async () => {
   try {
-    const data = await Category.find()
+    const config = await Config.findOne()
+    const data = await Category.find({ _id: { $in: config.categories } })
     return {
       status: 200,
       message: 'Get all category success',
