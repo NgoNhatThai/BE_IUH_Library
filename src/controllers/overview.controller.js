@@ -120,6 +120,45 @@ const exportExcelFile = async (req, res) => {
   }
 }
 
+const getReadTimeOverviewData = async (req, res) => {
+  try {
+    const { startDate, endDate, userId } = req.query
+    if (!startDate || !endDate || !userId) {
+      return res
+        .status(400)
+        .send('Missing required fields: startDate, endDate or userID')
+    }
+    const data = await overviewService.getReadTimeOverviewData(
+      startDate,
+      endDate,
+      userId
+    )
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
+const updateReadTime = async (req, res) => {
+  try {
+    const { userId, bookId, date, time } = req.body
+    if (!userId || !bookId || !date || !time) {
+      return res
+        .status(400)
+        .send('Missing required fields: userId, bookId, date, time')
+    }
+    const data = await overviewService.updateReadTime(
+      userId,
+      bookId,
+      date,
+      time
+    )
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
+
 export default {
   getTransactionOverview,
   getRevenueOverTime,
@@ -128,4 +167,6 @@ export default {
   getUserDepositRate,
   getTopBooksByViews,
   exportExcelFile,
+  getReadTimeOverviewData,
+  updateReadTime,
 }

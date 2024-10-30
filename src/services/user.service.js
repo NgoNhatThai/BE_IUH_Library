@@ -171,6 +171,9 @@ const rate = async (userId, bookId, rating) => {
       rating: rating,
       ratedAt: new Date(),
     })
+    if (!history.includes(bookId)) {
+      history.books.push(bookId)
+    }
     await history.save()
 
     if (!result) {

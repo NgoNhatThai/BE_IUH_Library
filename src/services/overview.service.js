@@ -2,6 +2,7 @@ import AmountRequest from '../config/nosql/models/requestAmount.model'
 import Amount from '../config/nosql/models/amount.model'
 import User from '../config/nosql/models/user.model'
 import ViewHistory from '../config/nosql/models/view-history.model'
+import ReadTime from '../config/nosql/models/readtime.model'
 
 // Doanh thu theo trạng thái giao dịch
 const getTransactionOverview = async (startDate, endDate) => {
@@ -467,6 +468,126 @@ const exportExcelFile = async (startDate, endDate, type) => {
   return buffer
 }
 
+// Thống kê thời gian đọc trong khoảng thời gian của 1 user
+const getReadTimeOverviewData = async (startDate, endDate, userId) => {
+  try {
+    // Tạo danh sách các ngày từ startDate đến endDate
+    const daysArray = []
+    let currentDate = new Date(startDate)
+    while (currentDate <= new Date(endDate)) {
+      daysArray.push(currentDate.toISOString().split('T')[0]) // Định dạng 'YYYY-MM-DD'
+      currentDate.setDate(currentDate.getDate() + 1)
+    }
+
+    // Lấy tất cả bản ghi thời gian đọc của user trong khoảng thời gian
+    const readTimeData = await ReadTime.find({
+      userId: userId,
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    }).sort({ date: 1 })
+
+    // Tạo một object map thời gian đọc theo ngày
+    const readTimeMap = readTimeData.reduce((acc, record) => {
+      acc[record.date.toISOString().split('T')[0]] = {
+        totalReadTime: record.totalReadTime,
+        detail: record.detail,
+      }
+      return acc
+    }, {})
+
+    // Đảm bảo mỗi ngày đều có một cột, nếu không có dữ liệu thì set giá trị 0
+    const labels = daysArray
+    const data = daysArray.map((day) => {
+      const record = readTimeMap[day]
+      return record ? record.totalReadTime : 0 // Nếu không có thì set 0
+    })
+
+    const totalReadTimeOverall = data.reduce((acc, time) => acc + time, 0)
+    const numberOfDays = daysArray.length
+    const averageReadTime =
+      numberOfDays > 0 ? totalReadTimeOverall / numberOfDays : 0
+
+    // Tạo details cho từng ngày
+    const details = daysArray.map((day) => {
+      const record = readTimeMap[day]
+      return {
+        date: new Date(day),
+        totalReadTime: record ? record.totalReadTime : 0,
+        details: record ? record.detail : [],
+      }
+    })
+
+    return {
+      labels,
+      datasets: [
+        {
+          label: 'Total Read Time (minutes)',
+          data,
+          backgroundColor: 'rgba(54, 162, 235, 0.2)',
+          borderColor: 'rgba(54, 162, 235, 1)',
+          borderWidth: 1,
+        },
+      ],
+      averageReadTime,
+      details,
+    }
+  } catch (error) {
+    console.error('Error fetching read time data:', error)
+    throw error
+  }
+}
+
+const updateReadTime = async (userId, bookId, date, time) => {
+  try {
+    let readTime = await ReadTime.findOne({
+      userId: userId,
+      date: date,
+    })
+
+    if (!readTime) {
+      const data = await ReadTime.create({
+        userId: userId,
+        date: date,
+        totalReadTime: time,
+        detail: [
+          {
+            bookId: bookId,
+            readTime: time,
+          },
+        ],
+      })
+      return {
+        status: 200,
+        message: 'Update read time record successfully',
+        data,
+      }
+    } else {
+      readTime.totalReadTime += time
+      const bookDetail = readTime.detail.find(
+        (item) => item.bookId.toString() === bookId.toString()
+      )
+      if (bookDetail) {
+        bookDetail.readTime += time
+      } else {
+        readTime.detail.push({
+          bookId: bookId,
+          readTime: time,
+        })
+      }
+
+      await readTime.save()
+
+      return {
+        status: 200,
+        message: 'Update read time record successfully',
+        data: readTime,
+      }
+    }
+  } catch (error) {
+    console.error('Error updating read time:', error)
+    throw new Error(error.message)
+  }
+}
+
 export default {
   getTransactionOverview,
   getRevenueOverTime,
@@ -475,4 +596,6 @@ export default {
   getUserDepositRate,
   getTopBooksByViews,
   exportExcelFile,
+  getReadTimeOverviewData,
+  updateReadTime,
 }

@@ -22,6 +22,12 @@ const InitRouteOverview = (route) => {
   route
     .route('/export-excel-file')
     .get(userMiddleware.checkJWT, overviewService.exportExcelFile)
+  route
+    .route('/get-read-time-overview')
+    .get(userMiddleware.checkJWT, overviewService.getReadTimeOverviewData)
+  route
+    .route('/update-read-time')
+    .post(userMiddleware.checkJWT, overviewService.updateReadTime)
 
   return route
 }
