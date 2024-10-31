@@ -59,7 +59,7 @@ const create = async (book) => {
       ...book,
       image: imagePath.secure_url,
       price: book.price ? book.price : 0,
-      status: Number(book.price) > 0 ? 'UNPUBLISH' : 'PUBLISH',
+      status: book.status ? book.status : 'ISWRITE',
       createDate: new Date(),
     })
 
@@ -192,30 +192,6 @@ const addChapter = async (chapter) => {
     const mp3Paths = []
     let imagePaths = []
 
-    // Process each page, get json text and convert to mp3, upload to cloudinary, get link
-    // const bookType = await getBookType(chapter.contentId)
-    // if (bookType === 'VOICE') {
-    //   for (const [index, text] of textPages.entries()) {
-    //     const cleanText = text.trim()
-    //     if (cleanText.length === 0) {
-    //       console.warn(`Page ${index + 1} is empty or contains invalid text.`)
-    //       continue
-    //     }
-
-    //     const mp3FilePath = path.join('uploads', `page-${index + 1}.mp3`)
-    //     const gtts = new gTTS(cleanText, 'vi')
-
-    //     await new Promise((resolve, reject) => {
-    //       gtts.save(mp3FilePath, (err) => {
-    //         if (err) reject(err)
-    //         else resolve()
-    //       })
-    //     })
-    //     const result = await uploadMp3ToCloudinary(mp3FilePath)
-    //     mp3Paths.push(result)
-    //     fs.unlinkSync(mp3FilePath)
-    //   }
-    // }
     const pdfDoc = await PDFDocument.load(pdfData)
     const numPages = pdfDoc.getPages().length
 
@@ -280,6 +256,89 @@ const addChapter = async (chapter) => {
     }
   }
 }
+const addMultipleChapters = async (
+  contentId,
+  file,
+  chapterTitles,
+  chapterPaginations
+) => {
+  try {
+    console.log({ file })
+    // Đọc file PDF lớn
+    const pdfFilePath = path.join('uploads', path.basename(file.path))
+    const pdfData = fs.readFileSync(pdfFilePath)
+
+    // Tải tài liệu PDF
+    const pdfDoc = await PDFDocument.load(pdfData)
+    const numPages = pdfDoc.getPages().length
+    console.log({ numPages })
+    console.log({ pdfData })
+    console.log({ pdfDoc })
+
+    for (let i = 0; i < chapterPaginations.length; i++) {
+      const [startPage, endPage] = chapterPaginations[i]
+      const chapterTitle = chapterTitles[i] || `Chapter ${i + 1}`
+
+      console.log({
+        startPage,
+        endPage,
+        chapterTitle,
+      })
+
+      // Tạo một tài liệu PDF mới cho từng chương
+      const chapterDoc = await PDFDocument.create()
+      let copyIndex = []
+
+      // Tạo danh sách các chỉ số trang cần sao chép
+      for (let pageIndex = startPage - 1; pageIndex < endPage; pageIndex++) {
+        copyIndex.push(pageIndex)
+      }
+
+      // Sao chép các trang từ pdfDoc sang chapterDoc
+
+      const copiedPages = await chapterDoc.copyPages(pdfDoc, copyIndex)
+
+      // Thêm từng trang đã sao chép vào chapterDoc
+      copiedPages.forEach((page) => {
+        console.log('copiedPages:', page)
+        chapterDoc.addPage(page)
+        console.log('chapterDoc:', chapterDoc)
+      })
+
+      console.log({ chapterDoc })
+
+      // Lưu file PDF cho từng chương tạm thời
+      const chapterPdfPath = path.join('uploads', `chapter_${i + 1}.pdf`)
+      const chapterPdfBytes = await chapterDoc.save()
+      fs.writeFileSync(chapterPdfPath, chapterPdfBytes)
+
+      // Gọi lại API addChapter cho chương đã tách ra
+      await addChapter({
+        contentId,
+        title: chapterTitle,
+        file: { path: chapterPdfPath }, // Chuyển đường dẫn file để addChapter có thể đọc
+      })
+
+      // Xóa file PDF sau khi xử lý xong
+      fs.unlinkSync(chapterPdfPath)
+    }
+
+    // Xóa file PDF gốc
+    fs.unlinkSync(pdfFilePath)
+
+    return {
+      status: 200,
+      message: 'All chapters added successfully',
+    }
+  } catch (error) {
+    console.error('Error splitting PDF and adding chapters:', error.message)
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+
 const getBookById = async (id) => {
   try {
     const data = await Book.findById(id)
@@ -760,4 +819,5 @@ module.exports = {
   findBooksByTextInput,
   getBookByCategory,
   getNewBooks,
+  addMultipleChapters,
 }

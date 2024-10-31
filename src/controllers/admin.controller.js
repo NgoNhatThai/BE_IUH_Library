@@ -1,11 +1,23 @@
 import adminService from '../services/admin.service.js'
+const getAllUser = async (req, res) => {
+  try {
+    const { pageIndex, pageSize } = req.query
+    if (!pageIndex || !pageSize) {
+      return res.status(400).send('Missing params')
+    }
+    const data = await adminService.getAllUser(pageIndex, pageSize)
+    return res.status(200).json(data)
+  } catch (error) {
+    return res.status(500).send(error.message)
+  }
+}
 const createAuthor = async (req, res) => {
   try {
     const author = req.body
     const data = await adminService.createAuthor(author)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const updateAuthor = async (req, res) => {
@@ -169,4 +181,5 @@ export default {
   configBankAccount,
   getBankAccount,
   rejectAmountRequest,
+  getAllUser,
 }

@@ -6,10 +6,34 @@ import AmountRequest from '../config/nosql/models/requestAmount.model'
 import Amount from '../config/nosql/models/amount.model'
 import BankAccount from '../config/nosql/models/bankAccount.model'
 import Notify from '../config/nosql/models/notify.model'
+import User from '../config/nosql/models/user.model'
 import axios from 'axios'
 import cloudinary from '../config/cloudinary'
 import fs from 'fs'
 import path from 'path'
+
+const getAllUser = async (pageIndex, pageSize) => {
+  try {
+    const skip = pageIndex * pageSize
+
+    const data = await User.find().skip(skip).limit(pageSize)
+
+    return {
+      status: 200,
+      message: 'Get all authors success',
+      data: data,
+      pagination: {
+        pageIndex,
+        pageSize,
+      },
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 const createAuthor = async (author) => {
   try {
@@ -387,4 +411,5 @@ export default {
   configBankAccount,
   getBankAccount,
   rejectAmountRequest,
+  getAllUser,
 }

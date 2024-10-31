@@ -48,6 +48,9 @@ const InitRouteAdmin = (route) => {
   route
     .route('/reject-amount-request')
     .post(userMiddleware.checkJWT, adminController.rejectAmountRequest)
+  route
+    .route('/get-all-user')
+    .get(userMiddleware.checkJWT, adminController.getAllUser)
   return route
 }
 module.exports = InitRouteAdmin

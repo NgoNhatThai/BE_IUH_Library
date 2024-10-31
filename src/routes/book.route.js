@@ -38,6 +38,13 @@ const InitRoutesBook = (router) => {
     .get(bookController.getBookByCategory)
   router.route('/get-new-books').get(bookController.getNewBooks)
   router.route('/get-recommend-books').get(recommendController.recommendBook)
+  router
+    .route('/add-multi-chapters')
+    .post(
+      userMiddleware.checkJWT,
+      upload.single('file'),
+      bookController.addMultipleChapters
+    )
 
   return router
 }

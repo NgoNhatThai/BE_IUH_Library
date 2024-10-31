@@ -183,6 +183,30 @@ const getNewBooks = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const addMultipleChapters = async (req, res) => {
+  try {
+    const { contentId } = req.body
+    const chapterTitles = req.body.chapterTitles.map(JSON.parse)
+    const chapterPaginations = req.body.chapterPaginations.map(JSON.parse)
+    const file = req.file
+    if (!contentId || !file || !chapterTitles || !chapterPaginations) {
+      return res
+        .status(400)
+        .send(
+          'Bad request: missing params contentId, file chapterTitles or chapterPaginations'
+        )
+    }
+    const data = await bookService.addMultipleChapters(
+      contentId,
+      file,
+      chapterTitles,
+      chapterPaginations
+    )
+    return res.status(200).json(data)
+  } catch (error) {
+    return res.status(500).send(error.message)
+  }
+}
 module.exports = {
   create,
   update,
@@ -199,4 +223,5 @@ module.exports = {
   findBooksByTextInput,
   getBookByCategory,
   getNewBooks,
+  addMultipleChapters,
 }

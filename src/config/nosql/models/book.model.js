@@ -38,8 +38,11 @@ const BookModel = Schema(
     },
     status: {
       type: String,
-      default: 'PUBLISH',
-      enum: ['PUBLISH', 'UNPUBLISH'],
+      enum: ['ISWRITE', 'FINISH'],
+    },
+    active: {
+      default: true,
+      type: Boolean,
     },
   },
   {
