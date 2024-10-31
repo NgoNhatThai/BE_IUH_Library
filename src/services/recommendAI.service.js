@@ -97,10 +97,17 @@ const suggestBooks = async (userId) => {
     )
 
     const suggestionIds = filterUnreadBooks(recommendedBooks, userHistory)
-    // Trả về danh sách theo ids được đề xuất
+    // Lấy danh sách ID sách đã đọc của người dùng
+    const readBookIds = userHistory.books.map((book) => book.bookId.toString())
 
+    // Loại bỏ các sách đã đọc khỏi danh sách được đề xuất
+    const unreadBooks = recommendedBooks.filter(
+      (bookId) => !readBookIds.includes(bookId.toString())
+    )
+
+    // Trả về danh sách các sách chưa đọc với thông tin chi tiết
     let books = await Promise.all(
-      suggestionIds.map(async (bookId) => {
+      unreadBooks.map(async (bookId) => {
         const book = await Book.findById(bookId).populate([
           { path: 'authorId' },
           { path: 'categoryId' },

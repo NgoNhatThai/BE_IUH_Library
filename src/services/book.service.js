@@ -193,29 +193,29 @@ const addChapter = async (chapter) => {
     let imagePaths = []
 
     // Process each page, get json text and convert to mp3, upload to cloudinary, get link
-    const bookType = await getBookType(chapter.contentId)
-    if (bookType === 'VOICE') {
-      for (const [index, text] of textPages.entries()) {
-        const cleanText = text.trim()
-        if (cleanText.length === 0) {
-          console.warn(`Page ${index + 1} is empty or contains invalid text.`)
-          continue
-        }
+    // const bookType = await getBookType(chapter.contentId)
+    // if (bookType === 'VOICE') {
+    //   for (const [index, text] of textPages.entries()) {
+    //     const cleanText = text.trim()
+    //     if (cleanText.length === 0) {
+    //       console.warn(`Page ${index + 1} is empty or contains invalid text.`)
+    //       continue
+    //     }
 
-        const mp3FilePath = path.join('uploads', `page-${index + 1}.mp3`)
-        const gtts = new gTTS(cleanText, 'vi')
+    //     const mp3FilePath = path.join('uploads', `page-${index + 1}.mp3`)
+    //     const gtts = new gTTS(cleanText, 'vi')
 
-        await new Promise((resolve, reject) => {
-          gtts.save(mp3FilePath, (err) => {
-            if (err) reject(err)
-            else resolve()
-          })
-        })
-        const result = await uploadMp3ToCloudinary(mp3FilePath)
-        mp3Paths.push(result)
-        fs.unlinkSync(mp3FilePath)
-      }
-    }
+    //     await new Promise((resolve, reject) => {
+    //       gtts.save(mp3FilePath, (err) => {
+    //         if (err) reject(err)
+    //         else resolve()
+    //       })
+    //     })
+    //     const result = await uploadMp3ToCloudinary(mp3FilePath)
+    //     mp3Paths.push(result)
+    //     fs.unlinkSync(mp3FilePath)
+    //   }
+    // }
     const pdfDoc = await PDFDocument.load(pdfData)
     const numPages = pdfDoc.getPages().length
 
@@ -317,6 +317,7 @@ const search = async (params) => {
     }
 
     const books = await Book.find(query)
+      .populate([{ path: 'authorId' }, { path: 'categoryId' }])
       .skip(params.pageIndex * params.pageSize)
       .limit(params.pageSize)
 
