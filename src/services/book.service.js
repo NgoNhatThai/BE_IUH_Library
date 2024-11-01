@@ -15,7 +15,6 @@ import path from 'path'
 import { PDFDocument } from 'pdf-lib'
 import pdfParse from 'pdf-parse'
 import pdfPoppler from 'pdf-poppler'
-import gTTS from 'gtts'
 
 const create = async (book) => {
   try {
@@ -263,27 +262,16 @@ const addMultipleChapters = async (
   chapterPaginations
 ) => {
   try {
-    console.log({ file })
     // Đọc file PDF lớn
     const pdfFilePath = path.join('uploads', path.basename(file.path))
     const pdfData = fs.readFileSync(pdfFilePath)
 
     // Tải tài liệu PDF
     const pdfDoc = await PDFDocument.load(pdfData)
-    const numPages = pdfDoc.getPages().length
-    console.log({ numPages })
-    console.log({ pdfData })
-    console.log({ pdfDoc })
 
     for (let i = 0; i < chapterPaginations.length; i++) {
       const [startPage, endPage] = chapterPaginations[i]
       const chapterTitle = chapterTitles[i] || `Chapter ${i + 1}`
-
-      console.log({
-        startPage,
-        endPage,
-        chapterTitle,
-      })
 
       // Tạo một tài liệu PDF mới cho từng chương
       const chapterDoc = await PDFDocument.create()
@@ -300,12 +288,8 @@ const addMultipleChapters = async (
 
       // Thêm từng trang đã sao chép vào chapterDoc
       copiedPages.forEach((page) => {
-        console.log('copiedPages:', page)
         chapterDoc.addPage(page)
-        console.log('chapterDoc:', chapterDoc)
       })
-
-      console.log({ chapterDoc })
 
       // Lưu file PDF cho từng chương tạm thời
       const chapterPdfPath = path.join('uploads', `chapter_${i + 1}.pdf`)
@@ -318,9 +302,6 @@ const addMultipleChapters = async (
         title: chapterTitle,
         file: { path: chapterPdfPath }, // Chuyển đường dẫn file để addChapter có thể đọc
       })
-
-      // Xóa file PDF sau khi xử lý xong
-      fs.unlinkSync(chapterPdfPath)
     }
 
     // Xóa file PDF gốc
