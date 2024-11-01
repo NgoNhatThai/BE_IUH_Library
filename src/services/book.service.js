@@ -270,21 +270,17 @@ const addMultipleChapters = async (
     const pdfDoc = await PDFDocument.load(pdfData)
 
     for (let i = 0; i < chapterPaginations.length; i++) {
-      const [startPage, endPage] = chapterPaginations[i]
+      const pages = chapterPaginations[i] // Mảng chứa các trang của chương
       const chapterTitle = chapterTitles[i] || `Chapter ${i + 1}`
 
       // Tạo một tài liệu PDF mới cho từng chương
       const chapterDoc = await PDFDocument.create()
-      let copyIndex = []
-
-      // Tạo danh sách các chỉ số trang cần sao chép
-      for (let pageIndex = startPage - 1; pageIndex < endPage; pageIndex++) {
-        copyIndex.push(pageIndex)
-      }
 
       // Sao chép các trang từ pdfDoc sang chapterDoc
-
-      const copiedPages = await chapterDoc.copyPages(pdfDoc, copyIndex)
+      const copiedPages = await chapterDoc.copyPages(
+        pdfDoc,
+        pages.map((p) => p - 1)
+      )
 
       // Thêm từng trang đã sao chép vào chapterDoc
       copiedPages.forEach((page) => {
@@ -300,7 +296,7 @@ const addMultipleChapters = async (
       await addChapter({
         contentId,
         title: chapterTitle,
-        file: { path: chapterPdfPath }, // Chuyển đường dẫn file để addChapter có thể đọc
+        file: { path: chapterPdfPath },
       })
     }
 

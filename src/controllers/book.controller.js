@@ -186,27 +186,38 @@ const getNewBooks = async (req, res) => {
 const addMultipleChapters = async (req, res) => {
   try {
     const { contentId } = req.body
-    const chapterTitles = req.body.chapterTitles.map(JSON.parse)
-    const chapterPaginations = req.body.chapterPaginations.map(JSON.parse)
+
+    // Parse chapterTitles
+    const chapterTitles = req.body.chapterTitles
+
+    // Parse chapterPaginations
+    const chapterPaginations = req.body.chapterPaginations
+
     const file = req.file
-    if (!contentId || !file || !chapterTitles || !chapterPaginations) {
+
+    // Kiểm tra các tham số cần thiết
+    if (!contentId || !file || !chapterTitles || !chapterPaginations.length) {
       return res
         .status(400)
         .send(
-          'Bad request: missing params contentId, file chapterTitles or chapterPaginations'
+          'Bad request: missing params contentId, file, chapterTitles or chapterPaginations'
         )
     }
+
+    // Gọi dịch vụ để thêm nhiều chương
     const data = await bookService.addMultipleChapters(
       contentId,
       file,
       chapterTitles,
       chapterPaginations
     )
+
     return res.status(200).json(data)
   } catch (error) {
     return res.status(500).send(error.message)
   }
 }
+
 module.exports = {
   create,
   update,
