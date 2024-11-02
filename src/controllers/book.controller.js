@@ -5,7 +5,7 @@ const create = async (req, res) => {
       ...req.body,
       image: req.file.path,
     }
-    if (!book.title || !book.image || !book.type) {
+    if (!book.title || !book.image) {
       return res.status(400).send('Bad request: Missing fields')
     }
     if (!req.file) {

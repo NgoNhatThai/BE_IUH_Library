@@ -155,21 +155,6 @@ const uploadToCloudinary = async (filePath, resourceType = 'image') => {
     )
   })
 }
-const uploadMp3ToCloudinary = async (filePath) => {
-  return new Promise((resolve, reject) => {
-    cloudinary.uploader.upload(
-      filePath,
-      { resource_type: 'video' },
-      (error, result) => {
-        if (error) {
-          reject(error)
-        } else {
-          resolve(result.secure_url)
-        }
-      }
-    )
-  })
-}
 const addChapter = async (chapter) => {
   try {
     // Check if chapter title is empty
@@ -183,6 +168,15 @@ const addChapter = async (chapter) => {
     // Read PDF file
     const pdfFilePath = path.join('uploads', path.basename(chapter.file.path))
     const pdfData = fs.readFileSync(pdfFilePath)
+
+    // Check img to set type for the book
+    const check = await checkPdfContent(pdfFilePath, chapter.contentId)
+    if (!check) {
+      return {
+        status: 400,
+        message: 'Error: conflic type of pdf file',
+      }
+    }
 
     // Parse PDF text
     const pdfText = await pdfParse(pdfData)
@@ -266,6 +260,15 @@ const addMultipleChapters = async (
     const pdfFilePath = path.join('uploads', path.basename(file.path))
     const pdfData = fs.readFileSync(pdfFilePath)
 
+    //Kiểm tra file có lưu ảnh ko để đổi type
+    const result = await checkPdfContent(pdfFilePath, contentId)
+    if (!result) {
+      return {
+        status: 400,
+        message: 'Conflic book type by this chapter',
+      }
+    }
+
     // Tải tài liệu PDF
     const pdfDoc = await PDFDocument.load(pdfData)
 
@@ -315,7 +318,6 @@ const addMultipleChapters = async (
     }
   }
 }
-
 const getBookById = async (id) => {
   try {
     const data = await Book.findById(id)
@@ -775,6 +777,63 @@ const getNewBooks = async () => {
       status: 500,
       message: error.message,
     }
+  }
+}
+const checkPdfContent = async (filePath, contentId) => {
+  try {
+    // Đọc tệp PDF
+    const pdfData = fs.readFileSync(filePath)
+    const pdfDoc = await PDFDocument.load(pdfData)
+
+    let hasImages = false
+
+    // Lặp qua tất cả các trang trong PDF
+    const pages = pdfDoc.getPages()
+    for (const page of pages) {
+      // Kiểm tra các đối tượng trên trang
+      const { xObject } = page.node
+
+      // Nếu không có xObject, bỏ qua trang này
+      if (!xObject) continue
+
+      // Duyệt qua các đối tượng trong xObject
+      for (const obj of Object.values(xObject)) {
+        if (obj instanceof PDFImage) {
+          hasImages = true
+          break // Nếu tìm thấy hình ảnh, không cần kiểm tra nữa
+        }
+      }
+
+      if (hasImages) break // Dừng lại nếu tìm thấy hình ảnh
+    }
+
+    // Tìm kiếm Content theo contentId
+    const content = await Content.findOne({ _id: contentId })
+    if (!content) {
+      throw new Error('Content ID not found!')
+    }
+
+    // Tìm sách theo content.bookId và cập nhật loại sách
+    const book = await Book.findOne({ _id: content.bookId })
+    if (!book) {
+      throw new Error('Book ID not found!')
+    }
+
+    // Cập nhật type của sách dựa vào nội dung PDF
+    if (book.type === 'NORMAL') {
+      book.type = hasImages ? 'IMAGE' : 'VOICE' // Cập nhật loại sách
+    } else {
+      if (book.type !== 'IMAGE' && hasImages) {
+        return false
+      }
+    }
+
+    // Lưu cập nhật của sách
+    await book.save()
+    return true
+  } catch (error) {
+    console.error('Check file PDF failed:', error.message)
+    throw new Error(`Check file PDF failed: ${error.message}`)
   }
 }
 
