@@ -34,7 +34,6 @@ const getAllUser = async (pageIndex, pageSize) => {
     }
   }
 }
-
 const createAuthor = async (author) => {
   try {
     const newAuthor = new Author({

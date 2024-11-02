@@ -5,21 +5,21 @@ const like = async (req, res) => {
   try {
     const { userId, bookId } = req.body
     const data = await userService.like(userId, bookId)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const read = async (req, res) => {
   try {
     const { userId, bookId, chapterId } = req.body
-    if (!bookId) {
-      res.status(400).send('Book id is required')
+    if (!bookId || !userId || !chapterId) {
+      return res.status(400).send('Missing params: userID, bookID or chapterID')
     }
     const data = await userService.read(userId, bookId, chapterId)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const rate = async (req, res) => {
@@ -29,36 +29,39 @@ const rate = async (req, res) => {
       return res.status(400).send('User id, book id and rating are required')
     }
     const data = await userService.rate(userId, bookId, rating)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const comment = async (req, res) => {
   try {
     const { userId, bookId, comment } = req.body
     const data = await userService.comment(userId, bookId, comment)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const createUserBookMark = async (req, res) => {
   try {
     const { userId, bookId } = req.body
+    if (!userId || !bookId) {
+      return res.status(400).send('Missing params')
+    }
     const data = await userService.createUserBookMark(userId, bookId)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const updateUserBookMark = async (req, res) => {
   try {
     const { updateData } = req.body
     const data = await userService.updateUserBookMark(updateData)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const getUserBookMark = async (req, res) => {
@@ -69,18 +72,18 @@ const getUserBookMark = async (req, res) => {
       return res.status(400).send('Bad request: Missing userId or book ID')
     }
     const data = await userService.getUserBookMark(userId, bookId)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const follow = async (req, res) => {
   try {
     const { userId, bookId } = req.body
     const data = await userService.follow(userId, bookId)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const getFollowList = async (req, res) => {

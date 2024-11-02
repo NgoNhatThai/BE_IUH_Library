@@ -52,22 +52,26 @@ const like = async (userId, bookId) => {
 }
 const read = async (userId, bookId, chapterId) => {
   try {
-    const review = await Review.findOne({
-      bookId: bookId,
-    })
-
+    // Tìm kiếm đánh giá của cuốn sách
+    const review = await Review.findOne({ bookId: bookId })
     if (!review) {
       return {
         errCode: 404,
         message: 'Review not found',
       }
     }
-    review.totalView += 1
-    await review.save()
 
-    let history = await History.findOne({
-      userId: userId,
-    })
+    // Cập nhật số lượt xem
+    review.totalView = (review.totalView || 0) + 1
+    try {
+      await review.save()
+    } catch (error) {
+      console.error('Error saving review:', error)
+      throw new Error('Error updating review.')
+    }
+
+    // Cập nhật lịch sử đọc của người dùng
+    let history = await History.findOne({ userId: userId })
     if (!history) {
       history = await History.create({
         userId: userId,
@@ -80,28 +84,35 @@ const read = async (userId, bookId, chapterId) => {
         ],
         lastReadBook: bookId,
       })
-    }
-    if (history.books.length > 0) {
-      history.books.push({
-        bookId: bookId,
-        lastReadChapterId: chapterId,
-        lastReadAt: new Date(),
-      })
     } else {
-      history.books = [
-        {
+      // Kiểm tra xem cuốn sách đã có trong lịch sử chưa
+      const existingBookIndex = history.books.findIndex(
+        (book) => book.bookId.toString() === bookId.toString()
+      )
+      if (existingBookIndex > -1) {
+        // Cập nhật thông tin của cuốn sách đã đọc
+        history.books[existingBookIndex].lastReadChapterId = chapterId
+        history.books[existingBookIndex].lastReadAt = new Date()
+      } else {
+        // Thêm sách mới vào lịch sử
+        history.books.push({
           bookId: bookId,
           lastReadChapterId: chapterId,
           lastReadAt: new Date(),
-        },
-      ]
+        })
+      }
+      history.lastReadBook = bookId
+      try {
+        await history.save()
+      } catch (error) {
+        console.error('Error saving history:', error)
+        throw new Error('Error updating reading history.')
+      }
     }
-    history.lastReadBook = bookId
-    await history.save()
 
+    // Cập nhật lượt xem theo ngày
     const today = new Date()
     today.setHours(0, 0, 0, 0)
-
     let viewHistoryByDate = await ViewHistory.findOne({
       bookId: bookId,
       date: today,
@@ -114,7 +125,12 @@ const read = async (userId, bookId, chapterId) => {
       })
     } else {
       viewHistoryByDate.views += 1
-      await viewHistoryByDate.save()
+      try {
+        await viewHistoryByDate.save()
+      } catch (error) {
+        console.error('Error saving view history:', error)
+        throw new Error('Error updating view history.')
+      }
     }
 
     return {
@@ -123,7 +139,8 @@ const read = async (userId, bookId, chapterId) => {
       data: review,
     }
   } catch (error) {
-    throw new Error(error)
+    console.error('Error in read function:', error)
+    throw new Error(error.message)
   }
 }
 const rate = async (userId, bookId, rating) => {

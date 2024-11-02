@@ -126,7 +126,7 @@ const remove = async (id) => {
         message: 'Book not found',
       }
     }
-    book.status = 'INACTIVE'
+    book.active = false
     const data = await Book.update(book)
     return {
       status: 200,
@@ -353,6 +353,7 @@ const search = async (params) => {
     if (params.authorId) {
       query.authorId = params.authorId
     }
+    query.active = true
 
     const books = await Book.find(query)
       .populate([{ path: 'authorId' }, { path: 'categoryId' }])
@@ -586,6 +587,7 @@ const getRelatedBooks = async (id) => {
     const books = await Book.find({
       $or: [{ categoryId: book.categoryId }, { authorId: book.authorId }],
       _id: { $ne: book._id },
+      active: true,
     })
       .populate([
         { path: 'authorId' },
@@ -645,6 +647,7 @@ const findBooksByTextInput = async (text) => {
       },
       {
         $match: {
+          active: true, // Thêm điều kiện active: true
           $or: [
             { title: { $regex: text, $options: 'i' } },
             { 'author.name': { $regex: text, $options: 'i' } },
@@ -655,9 +658,6 @@ const findBooksByTextInput = async (text) => {
       {
         $project: {
           title: 1,
-          // author: { $arrayElemAt: ['$author.name', 0] },
-          // category: { $arrayElemAt: ['$category.name', 0] },
-          // major: { $arrayElemAt: ['$major.name', 0] },
           authorId: 1,
           categoryId: 1,
           majorId: 1,
@@ -738,7 +738,7 @@ const sendAddedChapterNotification = async (chapter, bookId) => {
 }
 const getBookByCategory = async (categoryId) => {
   try {
-    const books = await Book.find({ categoryId: categoryId })
+    const books = await Book.find({ categoryId: categoryId, active: true })
       .populate('content')
       .populate('authorId')
       .populate('categoryId')
@@ -758,7 +758,7 @@ const getBookByCategory = async (categoryId) => {
 }
 const getNewBooks = async () => {
   try {
-    const books = await Book.find()
+    const books = await Book.find({ active: true })
       .populate('content')
       .populate('authorId')
       .populate('categoryId')
@@ -836,6 +836,31 @@ const checkPdfContent = async (filePath, contentId) => {
     throw new Error(`Check file PDF failed: ${error.message}`)
   }
 }
+const deleteChapter = async (chapterId) => {
+  try {
+    const result = await Chapter.findByIdAndDelete(chapterId)
+    if (result) {
+      await Content.findOneAndUpdate(
+        { chapters: chapterId },
+        {
+          $pull: { chapters: chapterId },
+          $inc: { numberOfChapter: -1 },
+        }
+      )
+    }
+
+    return {
+      status: 200,
+      message: 'Delete chapter successfully!',
+    }
+  } catch (error) {
+    console.error('Delete chapter fail:', error.message)
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   create,
@@ -856,4 +881,5 @@ module.exports = {
   getBookByCategory,
   getNewBooks,
   addMultipleChapters,
+  deleteChapter,
 }

@@ -217,6 +217,18 @@ const addMultipleChapters = async (req, res) => {
     return res.status(500).send(error.message)
   }
 }
+const deleteChapter = async (req, res) => {
+  try {
+    const { chapterId } = req.body
+    if (!chapterId) {
+      return res.status(400).send('Missing params chapterID')
+    }
+    const data = await bookService.deleteChapter(chapterId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 
 module.exports = {
   create,
@@ -235,4 +247,5 @@ module.exports = {
   getBookByCategory,
   getNewBooks,
   addMultipleChapters,
+  deleteChapter,
 }

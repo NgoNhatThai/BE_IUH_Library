@@ -7,9 +7,6 @@ import ReadTime from '../config/nosql/models/readtime.model'
 // Doanh thu theo trạng thái giao dịch
 const getTransactionOverview = async (startDate, endDate) => {
   try {
-    const totalTransactions = await AmountRequest.countDocuments({
-      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
-    })
     const pendingTransactions = await AmountRequest.countDocuments({
       status: 'PENDING',
       date: { $gte: new Date(startDate), $lte: new Date(endDate) },
@@ -31,7 +28,7 @@ const getTransactionOverview = async (startDate, endDate) => {
       labels: ['Đang chờ', 'Đã duyệt', 'Từ chối'],
       datasets: [
         {
-          label: 'Transactions Overview',
+          label: 'Thống kê giao dịch nạp tiền',
           data: [
             pendingTransactions,
             approvedTransactions,
@@ -102,7 +99,7 @@ const getRevenueOverTime = async (startDate, endDate) => {
       labels,
       datasets: [
         {
-          label: 'Revenue Over Time',
+          label: 'Thống kê doanh thu',
           data,
           backgroundColor: 'rgba(54, 162, 235, 0.2)',
           borderColor: 'rgba(54, 162, 235, 1)',
@@ -181,7 +178,7 @@ const getTopUsersByDepositAmount = async (startDate, endDate, limit) => {
       labels,
       datasets: [
         {
-          label: 'Top Users by Deposit Amount',
+          label: 'Top người dùng theo số tiền nạp',
           data,
           backgroundColor: 'rgba(153, 102, 255, 0.2)',
           borderColor: 'rgba(153, 102, 255, 1)',
@@ -355,7 +352,7 @@ const getTopBooksByViews = async (startDate, endDate, limit) => {
       labels,
       datasets: [
         {
-          label: 'Total Views',
+          label: 'Thống kê sách theo lượt xem',
           data,
           backgroundColor: 'rgba(75, 192, 192, 0.2)',
           borderColor: 'rgba(75, 192, 192, 1)',

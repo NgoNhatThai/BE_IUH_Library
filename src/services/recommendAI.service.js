@@ -6,7 +6,6 @@ const natural = require('natural')
 const loadModel = async () => {
   try {
     const model = await tf.loadLayersModel('file://model.json')
-
     return model
   } catch (error) {
     console.error('Error loading model:', error.message)
@@ -51,6 +50,7 @@ const preprocessHistory = async (history) => {
 
     return userBookFeatures
   } catch (error) {
+    console.error('Error preprocessing history:', error.message)
     return {
       status: 500,
       message: error.message,
@@ -60,9 +60,17 @@ const preprocessHistory = async (history) => {
 
 const filterUnreadBooks = (books, userHistory) => {
   try {
-    const readBookIds = userHistory.books.map((book) => book.bookId)
-    return books.filter((book) => !readBookIds.includes(book._id))
+    // Chuyển đổi tất cả readBookIds sang dạng string
+    const readBookIds = userHistory.books.map((book) => book.bookId.toString())
+
+    // Lọc sách chưa đọc bằng cách so sánh với chuỗi
+    const unreadBooks = books.filter(
+      (book) => !readBookIds.includes(book.toString())
+    )
+
+    return unreadBooks
   } catch (error) {
+    console.error('Error filtering unread books:', error.message)
     return {
       status: 500,
       message: error.message,
@@ -97,17 +105,10 @@ const suggestBooks = async (userId) => {
     )
 
     const suggestionIds = filterUnreadBooks(recommendedBooks, userHistory)
-    // Lấy danh sách ID sách đã đọc của người dùng
-    const readBookIds = userHistory.books.map((book) => book.bookId.toString())
-
-    // Loại bỏ các sách đã đọc khỏi danh sách được đề xuất
-    const unreadBooks = recommendedBooks.filter(
-      (bookId) => !readBookIds.includes(bookId.toString())
-    )
 
     // Trả về danh sách các sách chưa đọc với thông tin chi tiết
     let books = await Promise.all(
-      unreadBooks.map(async (bookId) => {
+      suggestionIds.map(async (bookId) => {
         const book = await Book.findById(bookId).populate([
           { path: 'authorId' },
           { path: 'categoryId' },
@@ -137,18 +138,20 @@ const preprocessBookForComparison = async (bookId) => {
     .tokenize(bookData.desc ?? 'None')
     .slice(0, 50)
 
-  const categoryVector = processTextToVector(bookData.categoryId)
-  const authorVector = processTextToVector(bookData.authorId)
+  const categoryVector = processTextToVector(bookData.categoryId || '')
+  const authorVector = processTextToVector(bookData.authorId || '')
 
-  return [
+  const resultVector = [
     ...processTextToVector(descriptionTokens.join(' ')),
     ...categoryVector,
     ...authorVector,
   ]
+  return resultVector
 }
 
 const prepareAllBookVectors = async () => {
   const books = await Book.find() // Lấy tất cả sách từ cơ sở dữ liệu
+
   const bookVectors = {}
 
   for (const book of books) {
@@ -166,7 +169,8 @@ const cosineSimilarity = (vecA, vecB) => {
   )
   const magnitudeA = Math.sqrt(vecA.reduce((sum, value) => sum + value ** 2, 0))
   const magnitudeB = Math.sqrt(vecB.reduce((sum, value) => sum + value ** 2, 0))
-  return dotProduct / (magnitudeA * magnitudeB)
+  const similarity = dotProduct / (magnitudeA * magnitudeB)
+  return similarity
 }
 
 const getSimilarBooks = (bookVectors, predictionVector) => {
@@ -182,6 +186,12 @@ const getSimilarBooks = (bookVectors, predictionVector) => {
 
 const suggestBooksBasedOnPredictions = async (predictions) => {
   const bookVectors = await prepareAllBookVectors() // Lấy vector của tất cả sách trong hệ thống
+
+  // Kiểm tra nếu predictions có dữ liệu hợp lệ
+  if (!predictions || !predictions[0]) {
+    console.error('Predictions không hợp lệ:', predictions)
+    return []
+  }
 
   const predictionVector = predictions[0] // Chọn vector phù hợp từ dự đoán
 

@@ -45,7 +45,9 @@ const InitRoutesBook = (router) => {
       upload.single('file'),
       bookController.addMultipleChapters
     )
-
+  router
+    .route('/delete-chapter')
+    .post(userMiddleware.checkJWT, bookController.deleteChapter)
   return router
 }
 
