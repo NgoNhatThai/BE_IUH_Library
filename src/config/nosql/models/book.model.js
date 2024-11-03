@@ -38,7 +38,8 @@ const BookModel = Schema(
     },
     status: {
       type: String,
-      enum: ['ISWRITE', 'FINISH'],
+      default: 'ISWRITE',
+      enum: ['ISWRITE', 'FINISH', 'SHORT'],
     },
     active: {
       default: true,

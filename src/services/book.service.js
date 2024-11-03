@@ -170,13 +170,7 @@ const addChapter = async (chapter) => {
     const pdfData = fs.readFileSync(pdfFilePath)
 
     // Check img to set type for the book
-    const check = await checkPdfContent(pdfFilePath, chapter.contentId)
-    if (!check) {
-      return {
-        status: 400,
-        message: 'Error: conflic type of pdf file',
-      }
-    }
+    await checkPdfContent(pdfFilePath, chapter.contentId)
 
     // Parse PDF text
     const pdfText = await pdfParse(pdfData)
@@ -230,6 +224,14 @@ const addChapter = async (chapter) => {
 
     await sendAddedChapterNotification(chapterData, content.bookId)
 
+    if (chapter.status && chapter.status === 'SHORT') {
+      let book = await Book.findOne({
+        _id: content.bookId,
+      })
+      book.status = 'SHORT'
+      await book.save()
+    }
+
     if (!result) {
       return {
         status: 500,
@@ -261,13 +263,7 @@ const addMultipleChapters = async (
     const pdfData = fs.readFileSync(pdfFilePath)
 
     //Kiểm tra file có lưu ảnh ko để đổi type
-    const result = await checkPdfContent(pdfFilePath, contentId)
-    if (!result) {
-      return {
-        status: 400,
-        message: 'Conflic book type by this chapter',
-      }
-    }
+    await checkPdfContent(pdfFilePath, contentId)
 
     // Tải tài liệu PDF
     const pdfDoc = await PDFDocument.load(pdfData)
@@ -305,6 +301,13 @@ const addMultipleChapters = async (
 
     // Xóa file PDF gốc
     fs.unlinkSync(pdfFilePath)
+
+    const content = await Content.findById(contentId)
+    let book = await Book.findOne({
+      _id: content.bookId,
+    })
+    book.status = 'FINISH'
+    await book.save()
 
     return {
       status: 200,
@@ -824,13 +827,12 @@ const checkPdfContent = async (filePath, contentId) => {
       book.type = hasImages ? 'IMAGE' : 'VOICE' // Cập nhật loại sách
     } else {
       if (book.type !== 'IMAGE' && hasImages) {
-        return false
+        book.type === 'IMAGE'
       }
     }
 
     // Lưu cập nhật của sách
     await book.save()
-    return true
   } catch (error) {
     console.error('Check file PDF failed:', error.message)
     throw new Error(`Check file PDF failed: ${error.message}`)
