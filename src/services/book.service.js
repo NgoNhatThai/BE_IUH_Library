@@ -12,9 +12,10 @@ import FollowList from '../config/nosql/models/follow-list.model'
 import HotSearch from '../config/nosql/models/hot-search.model'
 import fs from 'fs'
 import path from 'path'
-import { PDFDocument } from 'pdf-lib'
+import { componentsToColor, PDFDocument } from 'pdf-lib'
 import pdfParse from 'pdf-parse'
 import pdfPoppler from 'pdf-poppler'
+import Tesseract from 'tesseract.js'
 
 const create = async (book) => {
   try {
@@ -157,77 +158,88 @@ const uploadToCloudinary = async (filePath, resourceType = 'image') => {
 }
 const addChapter = async (chapter) => {
   try {
-    // Check if chapter title is empty
     const content = await Content.findById(chapter.contentId)
+
     if (!chapter.title) {
       chapter.title = `Chapter ${
         (content.numberOfChapter ? content.numberOfChapter : 0) + 1
       }`
     }
 
-    // Read PDF file
     const pdfFilePath = path.join('uploads', path.basename(chapter.file.path))
+
     const pdfData = fs.readFileSync(pdfFilePath)
 
-    // Check img to set type for the book
-    await checkPdfContent(pdfFilePath, chapter.contentId)
-
-    // Parse PDF text
-    const pdfText = await pdfParse(pdfData)
-    const textPages = pdfText.text.split('\n\n')
-
-    const mp3Paths = []
-    let imagePaths = []
-
-    const pdfDoc = await PDFDocument.load(pdfData)
-    const numPages = pdfDoc.getPages().length
-
-    // Convert PDF to images, upload to cloudinary, get link
-    const options = {
-      format: 'png',
-      out_dir: path.dirname(pdfFilePath),
-      out_prefix: path.basename(pdfFilePath, path.extname(pdfFilePath)),
-    }
-    await pdfPoppler.convert(pdfFilePath, options)
-
-    const imageFiles = fs
-      .readdirSync(path.dirname(pdfFilePath))
-      .filter(
-        (file) => file.startsWith(options.out_prefix) && file.endsWith('.png')
-      )
-
-    for (const imageFile of imageFiles) {
-      const imageFilePath = path.join(path.dirname(pdfFilePath), imageFile)
-      const imageUrl = await uploadToCloudinary(imageFilePath)
-      imagePaths.push(imageUrl)
-
-      fs.unlinkSync(imageFilePath)
+    // Kiểm tra xem PDF có phải dạng văn bản không
+    let pdfText = ''
+    try {
+      const parsedData = await pdfParse(pdfData)
+      pdfText = parsedData.text
+    } catch (error) {
+      console.log('Lỗi trích xuất văn bản từ PDF:', error.message)
     }
 
-    // Delete PDF file after processing
+    let textPages = []
+    const imagePaths = [] // Định nghĩa imagePaths ở đây
+
+    if (pdfText && pdfText.trim() !== '') {
+      textPages = pdfText.split('\n\n')
+    } else {
+      // Tạo các ảnh từ PDF
+      const options = {
+        format: 'png',
+        out_dir: path.dirname(pdfFilePath),
+        out_prefix: path.basename(pdfFilePath, path.extname(pdfFilePath)),
+      }
+      await pdfPoppler.convert(pdfFilePath, options)
+
+      // Đọc danh sách các file ảnh đã tạo
+      const imageFiles = fs
+        .readdirSync(path.dirname(pdfFilePath))
+        .filter(
+          (file) => file.startsWith(options.out_prefix) && file.endsWith('.png')
+        )
+
+      for (const imageFile of imageFiles) {
+        const imageFilePath = path.join(path.dirname(pdfFilePath), imageFile)
+
+        // Sử dụng Tesseract để OCR trên từng trang hình ảnh
+        const ocrResult = await Tesseract.recognize(imageFilePath, 'vie')
+        textPages.push(ocrResult.data.text)
+
+        // Lưu đường dẫn ảnh vào mảng
+        const imageUrl = await uploadToCloudinary(imageFilePath)
+        imagePaths.push(imageUrl)
+
+        // Xóa ảnh sau khi OCR
+        fs.unlinkSync(imageFilePath)
+      }
+    }
+
+    // Xóa file PDF gốc
     fs.unlinkSync(pdfFilePath)
 
+    // Lưu chương mới với dữ liệu đã trích xuất
     const newChapter = new Chapter({
       bookId: content.bookId,
       contentId: chapter.contentId,
       title: chapter.title,
       text: textPages,
-      images: imagePaths,
-      mp3s: mp3Paths,
-      numberOfPage: numPages,
+      images: imagePaths, // Lưu ảnh đã upload lên Cloudinary
+      mp3s: [],
+      numberOfPage: textPages.length,
       status: 'ACTIVE',
     })
 
     const chapterData = await Chapter.create(newChapter)
+
     content.numberOfChapter += 1
     const result = await content.save()
 
     await sendAddedChapterNotification(chapterData, content.bookId)
 
     if (chapter.status && chapter.status === 'SHORT') {
-      let book = await Book.findOne({
-        _id: content.bookId,
-      })
+      const book = await Book.findOne({ _id: content.bookId })
       book.status = 'SHORT'
       await book.save()
     }
@@ -235,16 +247,17 @@ const addChapter = async (chapter) => {
     if (!result) {
       return {
         status: 500,
-        message: 'Error updating content',
+        message: 'Lỗi cập nhật nội dung',
       }
     }
+
     return {
       status: 200,
-      message: 'Add chapter success',
+      message: 'Thêm chương thành công',
       data: chapterData,
     }
   } catch (error) {
-    console.error('Error processing chapter:', error.message)
+    console.error('Lỗi xử lý chương:', error.message)
     return {
       status: 500,
       message: error.message,
@@ -840,15 +853,38 @@ const checkPdfContent = async (filePath, contentId) => {
 }
 const deleteChapter = async (chapterId) => {
   try {
-    const result = await Chapter.findByIdAndDelete(chapterId)
-    if (result) {
-      await Content.findOneAndUpdate(
-        { chapters: chapterId },
-        {
-          $pull: { chapters: chapterId },
-          $inc: { numberOfChapter: -1 },
-        }
-      )
+    const deleteChapter = await Chapter.findOne({
+      _id: chapterId,
+    })
+    if (!deleteChapter) {
+      return {
+        status: 500,
+        message: 'Failed to find chapter!',
+      }
+    }
+
+    const contentUpdateResult = await Content.findOneAndUpdate(
+      { _id: deleteChapter.contentId },
+      {
+        $pull: { chapters: chapterId },
+        $inc: { numberOfChapter: -1 },
+      },
+      { new: true }
+    )
+
+    if (!contentUpdateResult) {
+      return {
+        status: 500,
+        message: 'Failed to update content number of chapters!',
+      }
+    }
+
+    const chapter = await Chapter.findByIdAndDelete(chapterId)
+    if (!chapter) {
+      return {
+        status: 404,
+        message: 'Chapter not found!',
+      }
     }
 
     return {
