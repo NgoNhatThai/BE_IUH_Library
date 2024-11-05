@@ -167,8 +167,9 @@ const addChapter = async (chapter) => {
     }
 
     const pdfFilePath = path.join('uploads', path.basename(chapter.file.path))
-
     const pdfData = fs.readFileSync(pdfFilePath)
+
+    await checkPdfContent(pdfFilePath, chapter.contentId)
 
     // Kiểm tra xem PDF có phải dạng văn bản không
     let pdfText = ''
@@ -180,12 +181,13 @@ const addChapter = async (chapter) => {
     }
 
     let textPages = []
-    const imagePaths = [] // Định nghĩa imagePaths ở đây
+    const imagePaths = [] // Mảng chứa URL ảnh tải lên Cloudinary
 
     if (pdfText && pdfText.trim() !== '') {
+      // Nếu PDF có văn bản, phân trang theo đoạn văn bằng dấu ngắt dòng "\n\n"
       textPages = pdfText.split('\n\n')
     } else {
-      // Tạo các ảnh từ PDF
+      // Nếu PDF không có văn bản, thực hiện OCR từ ảnh trên từng trang
       const options = {
         format: 'png',
         out_dir: path.dirname(pdfFilePath),
@@ -193,7 +195,7 @@ const addChapter = async (chapter) => {
       }
       await pdfPoppler.convert(pdfFilePath, options)
 
-      // Đọc danh sách các file ảnh đã tạo
+      // Đọc danh sách các file ảnh đã tạo từ PDF
       const imageFiles = fs
         .readdirSync(path.dirname(pdfFilePath))
         .filter(
@@ -203,17 +205,35 @@ const addChapter = async (chapter) => {
       for (const imageFile of imageFiles) {
         const imageFilePath = path.join(path.dirname(pdfFilePath), imageFile)
 
-        // Sử dụng Tesseract để OCR trên từng trang hình ảnh
+        // Sử dụng Tesseract để thực hiện OCR trên ảnh của từng trang
         const ocrResult = await Tesseract.recognize(imageFilePath, 'vie')
-        textPages.push(ocrResult.data.text)
+        textPages.push(ocrResult.data.text) // Lưu văn bản trích xuất được
 
-        // Lưu đường dẫn ảnh vào mảng
-        const imageUrl = await uploadToCloudinary(imageFilePath)
-        imagePaths.push(imageUrl)
-
-        // Xóa ảnh sau khi OCR
+        // Xóa ảnh sau khi OCR và tải lên Cloudinary
         fs.unlinkSync(imageFilePath)
       }
+    }
+
+    // Tạo ảnh từ PDF và tải lên Cloudinary dù có văn bản hay không
+    const options = {
+      format: 'png',
+      out_dir: path.dirname(pdfFilePath),
+      out_prefix: path.basename(pdfFilePath, path.extname(pdfFilePath)),
+    }
+    await pdfPoppler.convert(pdfFilePath, options)
+
+    const imageFiles = fs
+      .readdirSync(path.dirname(pdfFilePath))
+      .filter(
+        (file) => file.startsWith(options.out_prefix) && file.endsWith('.png')
+      )
+
+    for (const imageFile of imageFiles) {
+      const imageFilePath = path.join(path.dirname(pdfFilePath), imageFile)
+      const imageUrl = await uploadToCloudinary(imageFilePath)
+      imagePaths.push(imageUrl)
+
+      fs.unlinkSync(imageFilePath)
     }
 
     // Xóa file PDF gốc
@@ -225,7 +245,7 @@ const addChapter = async (chapter) => {
       contentId: chapter.contentId,
       title: chapter.title,
       text: textPages,
-      images: imagePaths, // Lưu ảnh đã upload lên Cloudinary
+      images: imagePaths, // Lưu các URL ảnh đã upload lên Cloudinary
       mp3s: [],
       numberOfPage: textPages.length,
       status: 'ACTIVE',
@@ -238,9 +258,9 @@ const addChapter = async (chapter) => {
 
     await sendAddedChapterNotification(chapterData, content.bookId)
 
-    if (chapter.status && chapter.status === 'SHORT') {
+    if (chapter.status) {
       const book = await Book.findOne({ _id: content.bookId })
-      book.status = 'SHORT'
+      book.status = chapter.status
       await book.save()
     }
 
@@ -264,6 +284,7 @@ const addChapter = async (chapter) => {
     }
   }
 }
+
 const addMultipleChapters = async (
   contentId,
   file,
@@ -429,7 +450,6 @@ const addMultiChapterByOutline = async (contentId, file) => {
     }
   }
 }
-
 const getBookById = async (id) => {
   try {
     const data = await Book.findById(id)
@@ -894,59 +914,59 @@ const getNewBooks = async () => {
 const checkPdfContent = async (filePath, contentId) => {
   try {
     // Đọc tệp PDF
-    const pdfData = fs.readFileSync(filePath)
-    const pdfDoc = await PDFDocument.load(pdfData)
-
-    let hasImages = false
-
-    // Lặp qua tất cả các trang trong PDF
-    const pages = pdfDoc.getPages()
-    for (const page of pages) {
-      // Kiểm tra các đối tượng trên trang
-      const { xObject } = page.node
-
-      // Nếu không có xObject, bỏ qua trang này
-      if (!xObject) continue
-
-      // Duyệt qua các đối tượng trong xObject
-      for (const obj of Object.values(xObject)) {
-        if (obj instanceof PDFImage) {
-          hasImages = true
-          break // Nếu tìm thấy hình ảnh, không cần kiểm tra nữa
-        }
-      }
-
-      if (hasImages) break // Dừng lại nếu tìm thấy hình ảnh
+    if (!fs.existsSync(filePath)) {
+      throw new Error('Tệp PDF không tồn tại.')
     }
+
+    // Tạo thư mục tạm thời để lưu hình ảnh
+    const outputDir = path.join(__dirname, 'output')
+    if (!fs.existsSync(outputDir)) {
+      fs.mkdirSync(outputDir)
+    }
+
+    // Cấu hình cho poppler
+    const options = {
+      format: 'png', // Định dạng hình ảnh
+      out_dir: outputDir, // Thư mục đầu ra
+      out_prefix: path.basename(filePath, path.extname(filePath)), // Tiền tố tên tệp hình ảnh
+      page: null, // Xuất tất cả các trang
+    }
+
+    // Chạy poppler để trích xuất hình ảnh
+    const result = await pdfPoppler.convert(filePath, options)
+
+    // Kiểm tra xem có hình ảnh được xuất ra hay không
+    const hasImages = fs.readdirSync(outputDir).length > 0
 
     // Tìm kiếm Content theo contentId
     const content = await Content.findOne({ _id: contentId })
     if (!content) {
-      throw new Error('Content ID not found!')
+      throw new Error('Content ID không tồn tại!')
     }
 
     // Tìm sách theo content.bookId và cập nhật loại sách
     const book = await Book.findOne({ _id: content.bookId })
     if (!book) {
-      throw new Error('Book ID not found!')
+      throw new Error('Book ID không tồn tại!')
     }
 
     // Cập nhật type của sách dựa vào nội dung PDF
     if (book.type === 'NORMAL') {
-      book.type = hasImages ? 'IMAGE' : 'VOICE' // Cập nhật loại sách
+      book.type = hasImages ? 'IMAGE' : 'VOICE'
     } else {
       if (book.type !== 'IMAGE' && hasImages) {
-        book.type === 'IMAGE'
+        book.type = 'IMAGE'
       }
     }
 
     // Lưu cập nhật của sách
     await book.save()
   } catch (error) {
-    console.error('Check file PDF failed:', error.message)
-    throw new Error(`Check file PDF failed: ${error.message}`)
+    console.error('Kiểm tra file PDF thất bại:', error.message)
+    throw new Error(`Kiểm tra file PDF thất bại: ${error.message}`)
   }
 }
+
 const deleteChapter = async (chapterId) => {
   try {
     const deleteChapter = await Chapter.findOne({
