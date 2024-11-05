@@ -334,6 +334,102 @@ const addMultipleChapters = async (
     }
   }
 }
+const addMultiChapterByOutline = async (contentId, file) => {
+  try {
+    // Đọc file PDF
+    const pdfFilePath = path.join('uploads', path.basename(file.path))
+    const pdfData = fs.readFileSync(pdfFilePath)
+
+    // Trích xuất nội dung văn bản từ file PDF
+    const data = await pdfParse(pdfData)
+    const text = data.text
+    const totalPages = data.numpages // Tổng số trang của PDF
+
+    // Tìm từ khóa "MỤC LỤC" và lấy các dòng bên dưới
+    const lines = text.split('\n')
+    const tocStartIndex = lines.findIndex((line) => line.includes('MỤC LỤC'))
+    if (tocStartIndex === -1) {
+      return { status: 400, message: 'Không tìm thấy MỤC LỤC trong tài liệu' }
+    }
+
+    const tableOfContents = []
+    for (let i = tocStartIndex + 1; i < lines.length; i++) {
+      let line = lines[i].trim()
+      if (!line) continue
+
+      // Kiểm tra nếu dòng hiện tại không có số trang
+      const match = line.match(/^(.+?)\s+(\d+)$/)
+      if (!match) {
+        const nextLine = lines[i + 1] ? lines[i + 1].trim() : ''
+
+        if (nextLine && /^\d+$/.test(nextLine)) {
+          line = `${line} ${nextLine}`
+          i++
+        } else {
+          break
+        }
+      }
+
+      const finalMatch = line.match(/^(.+?)\s+(\d+)$/)
+      if (finalMatch) {
+        // Lấy tiêu đề chương và loại bỏ các dấu "..."
+        const title = finalMatch[1].trim().replace(/\.+$/, '').trim() // Bỏ các dấu chấm ở cuối
+        const startPage = parseInt(finalMatch[2], 10)
+        tableOfContents.push({ title, startPage })
+      }
+    }
+
+    for (let i = 0; i < tableOfContents.length; i++) {
+      const { title, startPage } = tableOfContents[i]
+      const endPage =
+        i < tableOfContents.length - 1
+          ? tableOfContents[i + 1].startPage - 1
+          : totalPages // Nếu là chương cuối, đặt trang cuối là tổng số trang
+
+      const pdfDoc = await PDFDocument.load(pdfData)
+      const chapterDoc = await PDFDocument.create()
+
+      const copiedPages = await chapterDoc.copyPages(
+        pdfDoc,
+        Array.from(
+          { length: endPage - startPage + 1 },
+          (_, idx) => startPage + idx - 1
+        )
+      )
+
+      copiedPages.forEach((page) => chapterDoc.addPage(page))
+
+      const chapterPdfPath = path.join('uploads', `chapter_${i + 1}.pdf`)
+      const chapterPdfBytes = await chapterDoc.save()
+      fs.writeFileSync(chapterPdfPath, chapterPdfBytes)
+
+      await addChapter({
+        contentId,
+        title,
+        file: { path: chapterPdfPath },
+      })
+    }
+
+    fs.unlinkSync(pdfFilePath)
+
+    const content = await Content.findById(contentId)
+    const book = await Book.findById(content.bookId)
+    book.status = 'FINISH'
+    await book.save()
+
+    return {
+      status: 200,
+      message: 'All chapters added successfully based on table of contents',
+    }
+  } catch (error) {
+    console.error('Error splitting PDF by table of contents:', error.message)
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+
 const getBookById = async (id) => {
   try {
     const data = await Book.findById(id)
@@ -920,4 +1016,5 @@ module.exports = {
   getNewBooks,
   addMultipleChapters,
   deleteChapter,
+  addMultiChapterByOutline,
 }

@@ -44,16 +44,16 @@ const remove = async (req, res) => {
 const addChapter = async (req, res) => {
   try {
     if (!req.file || !req.body.contentId) {
-      res.status(400).send('Bad request: missing file or contentID')
+      return res.status(400).send('Bad request: missing file or contentID')
     }
     const chapter = {
       ...req.body,
       file: req.file,
     }
     const data = await bookService.addChapter(chapter)
-    res.status(200).json(data)
+    return res.status(200).json(data)
   } catch (error) {
-    res.status(500).send(error.message)
+    return res.status(500).send(error.message)
   }
 }
 const getBookById = async (req, res) => {
@@ -229,6 +229,19 @@ const deleteChapter = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const addMultiChapterByOutline = async (req, res) => {
+  try {
+    const { contentId } = req.body
+    const file = req.file
+    if (!contentId || !file) {
+      return res.status(400).send('Bad request: missing file or contentID')
+    }
+    const data = await bookService.addMultiChapterByOutline(contentId, file)
+    return res.status(200).json(data)
+  } catch (error) {
+    return res.status(500).send(error.message)
+  }
+}
 
 module.exports = {
   create,
@@ -248,4 +261,5 @@ module.exports = {
   getNewBooks,
   addMultipleChapters,
   deleteChapter,
+  addMultiChapterByOutline,
 }
