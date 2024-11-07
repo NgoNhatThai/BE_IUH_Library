@@ -902,39 +902,45 @@ const getNewBooks = async () => {
 }
 const hasImageInBlocks = (blocks) => {
   for (const block of blocks) {
-    // Kiểm tra xem block có phải là loại 'image' không
+    // Kiểm tra xem block có phải loại "image" không
     if (block.blocktype === 'image') {
       return true
     }
 
-    // Nếu không phải 'image', kiểm tra text của block có chứa các ký tự lạ không
     const text = block.text || ''
-
-    // Chia text thành từng dòng theo ký tự '\n'
     const lines = text.split('\n')
 
-    // Kiểm tra từng dòng trong block
+    // Biến đếm số dòng ngắn/lạ liên tục
+    let consecutiveShortLines = 0
+
     for (const line of lines) {
+      // Kiểm tra độ dài của dòng và tỷ lệ ký tự lạ
       const nonAlphaNumCount = line.replace(/[a-zA-Z0-9\s]/g, '').length
       const totalLength = line.length
-      const nonAlphaNumRatio = nonAlphaNumCount / totalLength
+      const nonAlphaNumRatio =
+        totalLength > 0 ? nonAlphaNumCount / totalLength : 1
 
-      // Nếu tỷ lệ ký tự lạ (non-alphanumeric) trong dòng này cao hơn 30%, coi như là ảnh
-      if (nonAlphaNumRatio > 0.3) {
-        return true
-      }
+      // Xác định dòng là "ngắn/lạ" nếu có tỷ lệ ký tự lạ cao hoặc độ dài ngắn
+      const isShortOrUnusual = totalLength <= 5 && nonAlphaNumRatio > 0.3
 
-      // Kiểm tra sự xuất hiện của các ký tự không phải chữ cái hoặc số (có thể là ký tự không in được)
-      const unusualCharacters = /[^\x20-\x7E]/.test(line)
-      if (unusualCharacters) {
-        return true
+      if (isShortOrUnusual && line !== '') {
+        consecutiveShortLines++
+
+        // Nếu có 3 dòng ngắn/lạ liên tiếp, coi block này như một ảnh
+        if (consecutiveShortLines >= 4) {
+          return true
+        }
+      } else {
+        // Nếu gặp dòng bình thường, đặt lại bộ đếm
+        consecutiveShortLines = 0
       }
     }
   }
 
-  // Nếu không phát hiện ảnh, trả về false
+  // Nếu không phát hiện ảnh
   return false
 }
+
 const checkPdfContent = async (filePath, contentId) => {
   try {
     // Kiểm tra tồn tại của tệp PDF
@@ -944,7 +950,12 @@ const checkPdfContent = async (filePath, contentId) => {
 
     // Tạo thư mục tạm thời để lưu hình ảnh
     const outputDir = path.join(__dirname, 'output')
-    if (!fs.existsSync(outputDir)) {
+    if (fs.existsSync(outputDir)) {
+      fs.readdirSync(outputDir).forEach((file) =>
+        fs.unlinkSync(path.join(outputDir, file))
+      )
+    } else {
+      // Tạo thư mục nếu chưa tồn tại
       fs.mkdirSync(outputDir)
     }
 
@@ -961,14 +972,15 @@ const checkPdfContent = async (filePath, contentId) => {
     let hasImages = false
 
     if (pdfText && pdfText.trim() !== '') {
-      // Nếu là PDF có văn bản, tiếp tục kiểm tra hình ảnh
+      // Cấu hình cho poppler
       const options = {
         format: 'png',
         out_dir: outputDir,
         out_prefix: path.basename(filePath, path.extname(filePath)),
-        page: null, // Trích xuất hình ảnh từ tất cả các trang
+        page: null,
       }
 
+      // Chạy poppler để trích xuất hình ảnh
       await pdfPoppler.convert(filePath, options)
 
       // Danh sách các file ảnh đã tạo từ PDF
@@ -976,8 +988,22 @@ const checkPdfContent = async (filePath, contentId) => {
         .readdirSync(outputDir)
         .filter((file) => file.endsWith('.png'))
 
-      if (imageFiles.length > 0) {
-        hasImages = true
+      for (const imageFile of imageFiles) {
+        const imageFilePath = path.join(outputDir, imageFile)
+
+        // Sử dụng Tesseract để OCR
+        const ocrResult = await Tesseract.recognize(imageFilePath, 'vie')
+        const blocks = ocrResult.data.blocks
+
+        // Duyệt qua từng block để kiểm tra
+        if (hasImageInBlocks(blocks)) {
+          hasImages = true
+          hasTextOnly = false
+          break // Dừng vòng lặp nếu đã phát hiện ảnh
+        }
+
+        // Xóa file ảnh sau khi kiểm tra
+        fs.unlinkSync(imageFilePath)
       }
     } else {
       // Cấu hình cho poppler
@@ -1006,16 +1032,8 @@ const checkPdfContent = async (filePath, contentId) => {
         // Duyệt qua từng block để kiểm tra
         if (hasImageInBlocks(blocks)) {
           hasImages = true
+          hasTextOnly = false
           break // Dừng vòng lặp nếu đã phát hiện ảnh
-        }
-
-        // Nếu có hình ảnh, thoát vòng lặp
-        if (hasImages) {
-          break
-        }
-
-        // Nếu không có hình ảnh, giả sử PDF chỉ chứa văn bản
-        if (hasTextOnly) {
         }
 
         // Xóa file ảnh sau khi kiểm tra
@@ -1023,22 +1041,21 @@ const checkPdfContent = async (filePath, contentId) => {
       }
     }
 
-    // Tìm kiếm Content theo contentId
     const content = await Content.findOne({ _id: contentId })
     if (!content) {
       throw new Error('Content ID không tồn tại!')
     }
 
-    // Tìm sách theo content.bookId và cập nhật loại sách
     const book = await Book.findOne({ _id: content.bookId })
     if (!book) {
       throw new Error('Book ID không tồn tại!')
     }
 
     // Cập nhật type của sách dựa vào nội dung PDF
+
     if (hasImages) {
       book.type = 'IMAGE'
-    } else if (hasTextOnly && !hasImages && book.type !== 'IMAGE') {
+    } else if (!hasImages && book.type !== 'IMAGE') {
       book.type = 'VOICE'
     }
 
@@ -1049,6 +1066,7 @@ const checkPdfContent = async (filePath, contentId) => {
     throw new Error(`Kiểm tra file PDF thất bại: ${error.message}`)
   }
 }
+
 const deleteChapter = async (chapterId) => {
   try {
     const deleteChapter = await Chapter.findOne({
