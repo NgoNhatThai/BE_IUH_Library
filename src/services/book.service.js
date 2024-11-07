@@ -177,7 +177,7 @@ const addChapter = async (chapter) => {
       const parsedData = await pdfParse(pdfData)
       pdfText = parsedData.text
     } catch (error) {
-      console.log('Lỗi trích xuất văn bản từ PDF:', error.message)
+      console.error('Lỗi trích xuất văn bản từ PDF:', error.message)
     }
 
     let textPages = []
@@ -284,7 +284,6 @@ const addChapter = async (chapter) => {
     }
   }
 }
-
 const addMultipleChapters = async (
   contentId,
   file,
@@ -295,9 +294,6 @@ const addMultipleChapters = async (
     // Đọc file PDF lớn
     const pdfFilePath = path.join('uploads', path.basename(file.path))
     const pdfData = fs.readFileSync(pdfFilePath)
-
-    //Kiểm tra file có lưu ảnh ko để đổi type
-    await checkPdfContent(pdfFilePath, contentId)
 
     // Tải tài liệu PDF
     const pdfDoc = await PDFDocument.load(pdfData)
@@ -335,13 +331,6 @@ const addMultipleChapters = async (
 
     // Xóa file PDF gốc
     fs.unlinkSync(pdfFilePath)
-
-    const content = await Content.findById(contentId)
-    let book = await Book.findOne({
-      _id: content.bookId,
-    })
-    book.status = 'FINISH'
-    await book.save()
 
     return {
       status: 200,
@@ -911,9 +900,44 @@ const getNewBooks = async () => {
     }
   }
 }
+const hasImageInBlocks = (blocks) => {
+  for (const block of blocks) {
+    // Kiểm tra xem block có phải là loại 'image' không
+    if (block.blocktype === 'image') {
+      return true
+    }
+
+    // Nếu không phải 'image', kiểm tra text của block có chứa các ký tự lạ không
+    const text = block.text || ''
+
+    // Chia text thành từng dòng theo ký tự '\n'
+    const lines = text.split('\n')
+
+    // Kiểm tra từng dòng trong block
+    for (const line of lines) {
+      const nonAlphaNumCount = line.replace(/[a-zA-Z0-9\s]/g, '').length
+      const totalLength = line.length
+      const nonAlphaNumRatio = nonAlphaNumCount / totalLength
+
+      // Nếu tỷ lệ ký tự lạ (non-alphanumeric) trong dòng này cao hơn 30%, coi như là ảnh
+      if (nonAlphaNumRatio > 0.3) {
+        return true
+      }
+
+      // Kiểm tra sự xuất hiện của các ký tự không phải chữ cái hoặc số (có thể là ký tự không in được)
+      const unusualCharacters = /[^\x20-\x7E]/.test(line)
+      if (unusualCharacters) {
+        return true
+      }
+    }
+  }
+
+  // Nếu không phát hiện ảnh, trả về false
+  return false
+}
 const checkPdfContent = async (filePath, contentId) => {
   try {
-    // Đọc tệp PDF
+    // Kiểm tra tồn tại của tệp PDF
     if (!fs.existsSync(filePath)) {
       throw new Error('Tệp PDF không tồn tại.')
     }
@@ -924,19 +948,80 @@ const checkPdfContent = async (filePath, contentId) => {
       fs.mkdirSync(outputDir)
     }
 
-    // Cấu hình cho poppler
-    const options = {
-      format: 'png', // Định dạng hình ảnh
-      out_dir: outputDir, // Thư mục đầu ra
-      out_prefix: path.basename(filePath, path.extname(filePath)), // Tiền tố tên tệp hình ảnh
-      page: null, // Xuất tất cả các trang
+    const pdfData = fs.readFileSync(filePath)
+    let pdfText = ''
+    try {
+      const parsedData = await pdfParse(pdfData)
+      pdfText = parsedData.text
+    } catch (error) {
+      console.error('Lỗi trích xuất văn bản từ PDF:', error.message)
     }
 
-    // Chạy poppler để trích xuất hình ảnh
-    const result = await pdfPoppler.convert(filePath, options)
+    let hasTextOnly = true // Giả định ban đầu là chỉ có văn bản
+    let hasImages = false
 
-    // Kiểm tra xem có hình ảnh được xuất ra hay không
-    const hasImages = fs.readdirSync(outputDir).length > 0
+    if (pdfText && pdfText.trim() !== '') {
+      // Nếu là PDF có văn bản, tiếp tục kiểm tra hình ảnh
+      const options = {
+        format: 'png',
+        out_dir: outputDir,
+        out_prefix: path.basename(filePath, path.extname(filePath)),
+        page: null, // Trích xuất hình ảnh từ tất cả các trang
+      }
+
+      await pdfPoppler.convert(filePath, options)
+
+      // Danh sách các file ảnh đã tạo từ PDF
+      const imageFiles = fs
+        .readdirSync(outputDir)
+        .filter((file) => file.endsWith('.png'))
+
+      if (imageFiles.length > 0) {
+        hasImages = true
+      }
+    } else {
+      // Cấu hình cho poppler
+      const options = {
+        format: 'png',
+        out_dir: outputDir,
+        out_prefix: path.basename(filePath, path.extname(filePath)),
+        page: null,
+      }
+
+      // Chạy poppler để trích xuất hình ảnh
+      await pdfPoppler.convert(filePath, options)
+
+      // Danh sách các file ảnh đã tạo từ PDF
+      const imageFiles = fs
+        .readdirSync(outputDir)
+        .filter((file) => file.endsWith('.png'))
+
+      for (const imageFile of imageFiles) {
+        const imageFilePath = path.join(outputDir, imageFile)
+
+        // Sử dụng Tesseract để OCR
+        const ocrResult = await Tesseract.recognize(imageFilePath, 'vie')
+        const blocks = ocrResult.data.blocks
+
+        // Duyệt qua từng block để kiểm tra
+        if (hasImageInBlocks(blocks)) {
+          hasImages = true
+          break // Dừng vòng lặp nếu đã phát hiện ảnh
+        }
+
+        // Nếu có hình ảnh, thoát vòng lặp
+        if (hasImages) {
+          break
+        }
+
+        // Nếu không có hình ảnh, giả sử PDF chỉ chứa văn bản
+        if (hasTextOnly) {
+        }
+
+        // Xóa file ảnh sau khi kiểm tra
+        fs.unlinkSync(imageFilePath)
+      }
+    }
 
     // Tìm kiếm Content theo contentId
     const content = await Content.findOne({ _id: contentId })
@@ -951,12 +1036,10 @@ const checkPdfContent = async (filePath, contentId) => {
     }
 
     // Cập nhật type của sách dựa vào nội dung PDF
-    if (book.type === 'NORMAL') {
-      book.type = hasImages ? 'IMAGE' : 'VOICE'
-    } else {
-      if (book.type !== 'IMAGE' && hasImages) {
-        book.type = 'IMAGE'
-      }
+    if (hasImages) {
+      book.type = 'IMAGE'
+    } else if (hasTextOnly && !hasImages && book.type !== 'IMAGE') {
+      book.type = 'VOICE'
     }
 
     // Lưu cập nhật của sách
@@ -966,7 +1049,6 @@ const checkPdfContent = async (filePath, contentId) => {
     throw new Error(`Kiểm tra file PDF thất bại: ${error.message}`)
   }
 }
-
 const deleteChapter = async (chapterId) => {
   try {
     const deleteChapter = await Chapter.findOne({
