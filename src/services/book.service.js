@@ -371,7 +371,6 @@ const addMultiChapterByOutline = async (contentId, file) => {
       const match = line.match(/^(.+?)\s+(\d+)$/)
       if (!match) {
         const nextLine = lines[i + 1] ? lines[i + 1].trim() : ''
-
         if (nextLine && /^\d+$/.test(nextLine)) {
           line = `${line} ${nextLine}`
           i++
@@ -388,7 +387,14 @@ const addMultiChapterByOutline = async (contentId, file) => {
         tableOfContents.push({ title, startPage })
       }
     }
+    if (!tableOfContents.length) {
+      return {
+        status: 400,
+        message: 'Something wrong with outline!',
+      }
+    }
 
+    // Tạo các chương từ MỤC LỤC
     for (let i = 0; i < tableOfContents.length; i++) {
       const { title, startPage } = tableOfContents[i]
       const endPage =
@@ -406,7 +412,6 @@ const addMultiChapterByOutline = async (contentId, file) => {
           (_, idx) => startPage + idx - 1
         )
       )
-
       copiedPages.forEach((page) => chapterDoc.addPage(page))
 
       const chapterPdfPath = path.join('uploads', `chapter_${i + 1}.pdf`)
@@ -432,7 +437,7 @@ const addMultiChapterByOutline = async (contentId, file) => {
       message: 'All chapters added successfully based on table of contents',
     }
   } catch (error) {
-    console.error('Error splitting PDF by table of contents:', error.message)
+    console.error('Lỗi khi phân tách PDF theo MỤC LỤC:', error.message)
     return {
       status: 500,
       message: error.message,
@@ -940,7 +945,6 @@ const hasImageInBlocks = (blocks) => {
   // Nếu không phát hiện ảnh
   return false
 }
-
 const checkPdfContent = async (filePath, contentId) => {
   try {
     // Kiểm tra tồn tại của tệp PDF
@@ -1066,7 +1070,6 @@ const checkPdfContent = async (filePath, contentId) => {
     throw new Error(`Kiểm tra file PDF thất bại: ${error.message}`)
   }
 }
-
 const deleteChapter = async (chapterId) => {
   try {
     const deleteChapter = await Chapter.findOne({
