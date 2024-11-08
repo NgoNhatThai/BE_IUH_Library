@@ -781,7 +781,7 @@ const findBooksByTextInput = async (text) => {
       },
       {
         $match: {
-          active: true, // Thêm điều kiện active: true
+          active: true,
           $or: [
             { title: { $regex: text, $options: 'i' } },
             { 'author.name': { $regex: text, $options: 'i' } },
