@@ -186,20 +186,43 @@ const getNewBooks = async (req, res) => {
 const addMultipleChapters = async (req, res) => {
   try {
     const { contentId, status } = req.body
-    const chapterTitles = req.body.chapterTitles
-    const chapterPaginations = req.body.chapterPaginations
+    let chapterTitles = req.body.chapterTitles
+    let chapterPaginations = req.body.chapterPaginations
     const file = req.file
+
+    // Kiểm tra và chuyển đổi `chapterTitles` về dạng mảng nếu nó là chuỗi JSON
+    if (typeof chapterTitles === 'string') {
+      try {
+        chapterTitles = JSON.parse(chapterTitles)
+      } catch (error) {
+        return res.status(400).send('Invalid format for chapterTitles')
+      }
+    }
+
+    // Kiểm tra và chuyển đổi `chapterPaginations` về dạng mảng nếu nó là chuỗi JSON
+    if (typeof chapterPaginations === 'string') {
+      try {
+        chapterPaginations = JSON.parse(chapterPaginations)
+      } catch (error) {
+        return res.status(400).send('Invalid format for chapterPaginations')
+      }
+    }
+
+    console.log({ chapterTitles })
+    console.log({ chapterPaginations })
 
     if (
       !contentId ||
       !file ||
+      !Array.isArray(chapterTitles) ||
+      !Array.isArray(chapterPaginations) ||
       !chapterTitles.length ||
       !chapterPaginations.length
     ) {
       return res
         .status(400)
         .send(
-          'Bad request: missing params contentId, file, chapterTitles or chapterPaginations'
+          'Bad request: missing or invalid params contentId, file, chapterTitles, or chapterPaginations'
         )
     }
 
@@ -216,6 +239,7 @@ const addMultipleChapters = async (req, res) => {
     return res.status(500).send(error.message)
   }
 }
+
 const deleteChapter = async (req, res) => {
   try {
     const { chapterId } = req.body

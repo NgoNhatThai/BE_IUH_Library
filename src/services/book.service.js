@@ -294,6 +294,7 @@ const addMultipleChapters = async (
   try {
     // Đọc file PDF lớn
     const pdfFilePath = path.join('uploads', path.basename(file.path))
+    console.log(`Reading PDF file from path: ${pdfFilePath}`)
     const pdfData = fs.readFileSync(pdfFilePath)
 
     // Tải tài liệu PDF
@@ -352,6 +353,7 @@ const addMultipleChapters = async (
     }
   }
 }
+
 const addMultiChapterByOutline = async (contentId, file) => {
   try {
     // Đọc file PDF
