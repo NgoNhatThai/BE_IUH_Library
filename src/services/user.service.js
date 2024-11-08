@@ -180,18 +180,52 @@ const rate = async (userId, bookId, rating) => {
     bookMark.rating = rating
     await bookMark.save()
 
-    let history = await History.findOne({
-      userId: userId,
-    })
-    history.rating.push({
-      bookId: bookId,
-      rating: rating,
-      ratedAt: new Date(),
-    })
-    if (!history.includes(bookId)) {
-      history.books.push(bookId)
+    let history = await History.findOne({ userId: userId })
+    if (!history) {
+      history = await History.create({
+        userId: userId,
+        books: [
+          {
+            bookId: bookId,
+            lastReadAt: new Date(),
+          },
+        ],
+        rating: [
+          {
+            bookId: bookId,
+            rating: rating,
+            ratedAt: new Date(),
+          },
+        ],
+        lastReadBook: bookId,
+      })
+    } else {
+      // Kiểm tra xem cuốn sách đã có trong lịch sử chưa
+      const existingBookIndex = history.books.findIndex(
+        (book) => book.bookId.toString() === bookId.toString()
+      )
+      if (existingBookIndex > -1) {
+        // Cập nhật thông tin của cuốn sách đã đọc
+        history.books[existingBookIndex].lastReadAt = new Date()
+      } else {
+        // Thêm sách mới vào lịch sử
+        history.books.push({
+          bookId: bookId,
+          lastReadAt: new Date(),
+        })
+        history.rating.push({
+          bookId: bookId,
+          rating: rating,
+          ratedAt: new Date(),
+        })
+      }
+      try {
+        await history.save()
+      } catch (error) {
+        console.error('Error saving history:', error)
+        throw new Error('Error updating reading history.')
+      }
     }
-    await history.save()
 
     if (!result) {
       return {
@@ -231,15 +265,52 @@ const comment = async (userId, bookId, comment) => {
     review.comments.push(newComment._id)
     const result = await review.save()
 
-    let history = await History.findOne({
-      userId: userId,
-    })
-    history.comment.push({
-      bookId: bookId,
-      content: comment,
-      createdAt: new Date(),
-    })
-    await history.save()
+    let history = await History.findOne({ userId: userId })
+    if (!history) {
+      history = await History.create({
+        userId: userId,
+        books: [
+          {
+            bookId: bookId,
+            lastReadAt: new Date(),
+          },
+        ],
+        comment: [
+          {
+            bookId: bookId,
+            content: comment,
+            createdAt: new Date(),
+          },
+        ],
+        lastReadBook: bookId,
+      })
+    } else {
+      // Kiểm tra xem cuốn sách đã có trong lịch sử chưa
+      const existingBookIndex = history.books.findIndex(
+        (book) => book.bookId.toString() === bookId.toString()
+      )
+      if (existingBookIndex > -1) {
+        // Cập nhật thông tin của cuốn sách đã đọc
+        history.books[existingBookIndex].lastReadAt = new Date()
+      } else {
+        // Thêm sách mới vào lịch sử
+        history.books.push({
+          bookId: bookId,
+          lastReadAt: new Date(),
+        })
+        history.comment.push({
+          bookId: bookId,
+          content: comment,
+          createdAt: new Date(),
+        })
+      }
+      try {
+        await history.save()
+      } catch (error) {
+        console.error('Error saving history:', error)
+        throw new Error('Error updating reading history.')
+      }
+    }
 
     if (!result) {
       return {
@@ -379,12 +450,10 @@ const follow = async (userId, bookId) => {
       }
     }
 
-    let history = await History.findOne({
-      userId: userId,
-    })
+    let history = await History.findOne({ userId })
     if (!history) {
       history = await History.create({
-        userId: userId,
+        userId,
         books: [],
         lastReadBook: null,
         like: [],
@@ -392,24 +461,32 @@ const follow = async (userId, bookId) => {
         rating: [],
         comment: [],
       })
+    } else {
+      const existingBookIndex = history.books.findIndex(
+        (book) => book.bookId.toString() === bookId.toString()
+      )
+      if (existingBookIndex > -1) {
+        history.books[existingBookIndex].lastReadAt = new Date()
+      } else {
+        history.follow.push(bookId)
+      }
     }
-    if (!history.follow.includes(bookId)) {
-      history.follow.push(bookId)
-    }
+
     await history.save()
 
-    let followList = await FollowList.findOne({ userId: userId })
+    let followList = await FollowList.findOne({ userId })
 
     if (!followList) {
       const newFollowList = await FollowList.create({
-        userId: userId,
+        userId,
         books: [bookId],
       })
-      if (newFollowList)
+      if (newFollowList) {
         return {
           status: 200,
           message: 'Follow book success',
         }
+      }
     } else {
       if (!followList.books.includes(bookId)) {
         followList.books.push(bookId)
@@ -433,6 +510,7 @@ const follow = async (userId, bookId) => {
     }
   }
 }
+
 const getFollowList = async (userId, pageIndex, pageSize) => {
   try {
     const followList = await FollowList.findOne({ userId: userId }).populate({
