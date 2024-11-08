@@ -510,7 +510,6 @@ const follow = async (userId, bookId) => {
     }
   }
 }
-
 const getFollowList = async (userId, pageIndex, pageSize) => {
   try {
     const followList = await FollowList.findOne({ userId: userId }).populate({
@@ -860,6 +859,7 @@ const buyBook = async (userId, bookId) => {
     }
   }
 }
+
 const getUserAmount = async (userId) => {
   try {
     const userAmount = await Amount.findOne({ userId: userId })
@@ -869,7 +869,23 @@ const getUserAmount = async (userId) => {
         message: 'User amount not found',
       }
     }
+
+    // Sort history by date in descending order
     userAmount.history.sort((a, b) => b.date - a.date)
+
+    // Process history to add book information if amount is negative
+    if (userAmount.history.length) {
+      for (let item of userAmount.history) {
+        if (item.amount < 0 && item.description) {
+          // If amount is negative, look for the book using description (bookId)
+          const book = await Book.findById(item.description) // Assuming description is the bookId
+          if (book) {
+            item.detail = book // Add book information to the history item
+          }
+        }
+      }
+    }
+
     return {
       status: 200,
       message: 'Get user amount success',
@@ -882,6 +898,7 @@ const getUserAmount = async (userId) => {
     }
   }
 }
+
 const getUserInfo = async (userId) => {
   try {
     const user = await User.findById(userId).populate(['amount', 'historyId'])

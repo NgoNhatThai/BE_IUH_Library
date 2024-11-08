@@ -13,6 +13,10 @@ const AmountModel = Schema(
         amount: Number,
         description: String,
         remain: Number,
+        detail: {
+          type: Schema.Types.ObjectId,
+          ref: 'Book',
+        },
         date: Date,
       },
     ],
