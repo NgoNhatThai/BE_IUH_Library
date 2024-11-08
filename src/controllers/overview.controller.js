@@ -2,14 +2,29 @@ import overviewService from '../services/overview.service.js'
 
 const getTransactionOverview = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query
+    const { startDate, endDate, ...rawFilters } = req.query
+
     if (!startDate || !endDate) {
       return res.status(400).send('Missing required fields: startDate, endDate')
     }
+
+    const filters = {
+      userId: rawFilters.userId,
+      bankConfigId: rawFilters.bankConfigId,
+      minAmount: rawFilters.minAmount
+        ? Number(rawFilters.minAmount)
+        : undefined,
+      maxAmount: rawFilters.maxAmount
+        ? Number(rawFilters.maxAmount)
+        : undefined,
+    }
+
     const data = await overviewService.getTransactionOverview(
       startDate,
-      endDate
+      endDate,
+      filters
     )
+
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
@@ -18,11 +33,29 @@ const getTransactionOverview = async (req, res) => {
 
 const getRevenueOverTime = async (req, res) => {
   try {
-    const { startDate, endDate } = req.query
+    const { startDate, endDate, ...rawFilters } = req.query
+
     if (!startDate || !endDate) {
       return res.status(400).send('Missing required fields: startDate, endDate')
     }
-    const data = await overviewService.getRevenueOverTime(startDate, endDate)
+
+    const filters = {
+      userId: rawFilters.userId,
+      bankConfigId: rawFilters.bankConfigId,
+      minAmount: rawFilters.minAmount
+        ? Number(rawFilters.minAmount)
+        : undefined,
+      maxAmount: rawFilters.maxAmount
+        ? Number(rawFilters.maxAmount)
+        : undefined,
+    }
+
+    const data = await overviewService.getRevenueOverTime(
+      startDate,
+      endDate,
+      filters
+    )
+
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
@@ -75,22 +108,33 @@ const getUserDepositRate = async (req, res) => {
 
 const getTopBooksByViews = async (req, res) => {
   try {
-    const { startDate, endDate, limit } = req.query
+    const { startDate, endDate, limit, ...rawFilters } = req.query
+
     if (!startDate || !endDate || !limit) {
       return res
         .status(400)
-        .send('Missing required fields: startDate, endDate or limit')
+        .send('Missing required fields: startDate, endDate, or limit')
     }
+
+    const filters = {
+      categoryId: rawFilters.categoryId,
+      authorId: rawFilters.authorId,
+      status: rawFilters.status,
+    }
+
     const data = await overviewService.getTopBooksByViews(
       startDate,
       endDate,
-      limit
+      limit,
+      filters
     )
+
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
   }
 }
+
 const exportExcelFile = async (req, res) => {
   try {
     const { startDate, endDate, type } = req.query

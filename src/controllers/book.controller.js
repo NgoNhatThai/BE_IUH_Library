@@ -185,18 +185,17 @@ const getNewBooks = async (req, res) => {
 }
 const addMultipleChapters = async (req, res) => {
   try {
-    const { contentId } = req.body
-
-    // Parse chapterTitles
+    const { contentId, status } = req.body
     const chapterTitles = req.body.chapterTitles
-
-    // Parse chapterPaginations
     const chapterPaginations = req.body.chapterPaginations
-
     const file = req.file
 
-    // Kiểm tra các tham số cần thiết
-    if (!contentId || !file || !chapterTitles || !chapterPaginations.length) {
+    if (
+      !contentId ||
+      !file ||
+      !chapterTitles.length ||
+      !chapterPaginations.length
+    ) {
       return res
         .status(400)
         .send(
@@ -204,12 +203,12 @@ const addMultipleChapters = async (req, res) => {
         )
     }
 
-    // Gọi dịch vụ để thêm nhiều chương
     const data = await bookService.addMultipleChapters(
       contentId,
       file,
       chapterTitles,
-      chapterPaginations
+      chapterPaginations,
+      status
     )
 
     return res.status(200).json(data)

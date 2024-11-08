@@ -5,24 +5,37 @@ import ViewHistory from '../config/nosql/models/view-history.model'
 import ReadTime from '../config/nosql/models/readtime.model'
 
 // Doanh thu theo trạng thái giao dịch
-const getTransactionOverview = async (startDate, endDate) => {
+const getTransactionOverview = async (startDate, endDate, filters) => {
   try {
-    const pendingTransactions = await AmountRequest.countDocuments({
-      status: 'PENDING',
+    const { userId, bankConfigId, minAmount, maxAmount } = filters
+
+    // Tạo điều kiện lọc động dựa trên các tiêu chí
+    const query = {
       date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    }
+
+    if (userId) query.userId = userId
+    if (bankConfigId) query.bankConfigId = bankConfigId
+    if (minAmount !== undefined || maxAmount !== undefined) {
+      query.amount = {}
+      if (minAmount !== undefined) query.amount.$gte = minAmount
+      if (maxAmount !== undefined) query.amount.$lte = maxAmount
+    }
+
+    const pendingTransactions = await AmountRequest.countDocuments({
+      ...query,
+      status: 'PENDING',
     })
     const approvedTransactions = await AmountRequest.countDocuments({
+      ...query,
       status: 'APPROVED',
-      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
     })
     const rejectedTransactions = await AmountRequest.countDocuments({
+      ...query,
       status: 'REJECTED',
-      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
     })
 
-    const tableData = await AmountRequest.find({
-      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
-    }).populate('userId')
+    const tableData = await AmountRequest.find(query).populate('userId')
 
     return {
       labels: ['Đang chờ', 'Đã duyệt', 'Từ chối'],
@@ -55,8 +68,10 @@ const getTransactionOverview = async (startDate, endDate) => {
 }
 
 // Doanh thu theo thời gian
-const getRevenueOverTime = async (startDate, endDate) => {
+const getRevenueOverTime = async (startDate, endDate, filters) => {
   try {
+    const { userId, bankConfigId, minAmount, maxAmount } = filters
+
     // Tạo danh sách các ngày từ startDate đến endDate
     const daysArray = []
     let currentDate = new Date(startDate)
@@ -65,12 +80,23 @@ const getRevenueOverTime = async (startDate, endDate) => {
       currentDate.setDate(currentDate.getDate() + 1)
     }
 
+    // Xây dựng điều kiện lọc động dựa trên các tiêu chí
+    const matchConditions = {
+      status: 'APPROVED',
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    }
+
+    if (userId) matchConditions.userId = userId
+    if (bankConfigId) matchConditions.bankConfigId = bankConfigId
+    if (minAmount !== undefined || maxAmount !== undefined) {
+      matchConditions.amount = {}
+      if (minAmount !== undefined) matchConditions.amount.$gte = minAmount
+      if (maxAmount !== undefined) matchConditions.amount.$lte = maxAmount
+    }
+
     const revenue = await AmountRequest.aggregate([
       {
-        $match: {
-          status: 'APPROVED',
-          date: { $gte: new Date(startDate), $lte: new Date(endDate) },
-        },
+        $match: matchConditions,
       },
       {
         $group: {
@@ -90,10 +116,11 @@ const getRevenueOverTime = async (startDate, endDate) => {
     // Đảm bảo mỗi ngày đều có một cột, nếu không có dữ liệu thì set giá trị 0
     const labels = daysArray
     const data = daysArray.map((day) => revenueMap[day] || 0) // Nếu không có thì set 0
-    const tableData = await AmountRequest.find({
-      status: 'APPROVED',
-      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
-    }).populate('userId')
+
+    // Dữ liệu cho bảng
+    const tableData = await AmountRequest.find(matchConditions).populate(
+      'userId'
+    )
 
     return {
       labels,
@@ -265,13 +292,26 @@ const getUserDepositRate = async () => {
 }
 
 // Thống kê theo lượt xem trong khoảng thời gian
-const getTopBooksByViews = async (startDate, endDate, limit) => {
+const getTopBooksByViews = async (startDate, endDate, limit, filters) => {
   try {
+    const { categoryId, authorId, status } = filters
+
+    // Điều kiện lọc động cho ViewHistory
+    const matchConditions = {
+      date: { $gte: new Date(startDate), $lte: new Date(endDate) },
+    }
+
+    // Điều kiện lọc động cho Book (sử dụng trong $lookup)
+    const bookMatchConditions = {}
+    if (categoryId)
+      bookMatchConditions.categoryId = mongoose.Types.ObjectId(categoryId)
+    if (authorId)
+      bookMatchConditions.authorId = mongoose.Types.ObjectId(authorId)
+    if (status) bookMatchConditions.status = status
+
     const topBooks = await ViewHistory.aggregate([
       {
-        $match: {
-          date: { $gte: new Date(startDate), $lte: new Date(endDate) },
-        },
+        $match: matchConditions,
       },
       {
         $group: {
@@ -287,9 +327,8 @@ const getTopBooksByViews = async (startDate, endDate, limit) => {
           as: 'bookDetails',
         },
       },
-      {
-        $unwind: '$bookDetails',
-      },
+      { $unwind: '$bookDetails' },
+      { $match: bookMatchConditions },
       {
         $project: {
           _id: 0,
@@ -299,9 +338,7 @@ const getTopBooksByViews = async (startDate, endDate, limit) => {
         },
       },
       {
-        $sort: {
-          totalViews: -1,
-        },
+        $sort: { totalViews: -1 },
       },
       {
         $limit: Number(limit),
@@ -312,11 +349,7 @@ const getTopBooksByViews = async (startDate, endDate, limit) => {
     const data = topBooks.map((book) => book.totalViews)
 
     const allBooks = await ViewHistory.aggregate([
-      {
-        $match: {
-          date: { $gte: new Date(startDate), $lte: new Date(endDate) },
-        },
-      },
+      { $match: matchConditions },
       {
         $group: {
           _id: '$bookId',
@@ -331,9 +364,8 @@ const getTopBooksByViews = async (startDate, endDate, limit) => {
           as: 'bookDetails',
         },
       },
-      {
-        $unwind: '$bookDetails',
-      },
+      { $unwind: '$bookDetails' },
+      { $match: bookMatchConditions },
       {
         $project: {
           _id: 0,
@@ -367,7 +399,6 @@ const getTopBooksByViews = async (startDate, endDate, limit) => {
 }
 
 const ExcelJS = require('exceljs')
-
 const exportExcelFile = async (startDate, endDate, type) => {
   const workbook = new ExcelJS.Workbook()
   let worksheet
@@ -465,7 +496,6 @@ const exportExcelFile = async (startDate, endDate, type) => {
   return buffer
 }
 
-// Thống kê thời gian đọc trong khoảng thời gian của 1 user
 const getReadTimeOverviewData = async (startDate, endDate, userId) => {
   try {
     // Tạo danh sách các ngày từ startDate đến endDate

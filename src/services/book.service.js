@@ -288,7 +288,8 @@ const addMultipleChapters = async (
   contentId,
   file,
   chapterTitles,
-  chapterPaginations
+  chapterPaginations,
+  status
 ) => {
   try {
     // Đọc file PDF lớn
@@ -331,6 +332,13 @@ const addMultipleChapters = async (
 
     // Xóa file PDF gốc
     fs.unlinkSync(pdfFilePath)
+
+    if (status) {
+      const content = await Content.findById(contentId)
+      const book = await Book.findById(content.bookId)
+      book.status = 'FINISH'
+      await book.save()
+    }
 
     return {
       status: 200,
