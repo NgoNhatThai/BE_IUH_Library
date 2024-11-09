@@ -51,6 +51,9 @@ const InitRouteAdmin = (route) => {
   route
     .route('/get-all-user')
     .get(userMiddleware.checkJWT, adminController.getAllUser)
+  route
+    .route('/search-user')
+    .get(userMiddleware.checkJWT, adminController.searchUser)
   return route
 }
 module.exports = InitRouteAdmin

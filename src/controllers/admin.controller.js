@@ -164,6 +164,15 @@ const rejectAmountRequest = async (req, res) => {
     res.status(500).send(error.message)
   }
 }
+const searchUser = async (req, res) => {
+  try {
+    const { text } = req.query
+    const data = await adminService.searchUser(text)
+    return res.status(200).json(data)
+  } catch (error) {
+    return res.status(500).send(error.message)
+  }
+}
 
 export default {
   createAuthor,
@@ -182,4 +191,5 @@ export default {
   getBankAccount,
   rejectAmountRequest,
   getAllUser,
+  searchUser,
 }

@@ -870,17 +870,14 @@ const getUserAmount = async (userId) => {
       }
     }
 
-    // Sort history by date in descending order
     userAmount.history.sort((a, b) => b.date - a.date)
 
-    // Process history to add book information if amount is negative
     if (userAmount.history.length) {
       for (let item of userAmount.history) {
         if (item.amount < 0 && item.description) {
-          // If amount is negative, look for the book using description (bookId)
-          const book = await Book.findById(item.description) // Assuming description is the bookId
+          const book = await Book.findById(item.description)
           if (book) {
-            item.detail = book // Add book information to the history item
+            item.detail = book
           }
         }
       }

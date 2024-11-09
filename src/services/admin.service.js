@@ -20,7 +20,7 @@ const getAllUser = async (pageIndex, pageSize) => {
 
     return {
       status: 200,
-      message: 'Get all authors success',
+      message: 'Get all user success',
       data: data,
       pagination: {
         pageIndex,
@@ -393,6 +393,47 @@ const rejectAmountRequest = async (requestId) => {
     }
   }
 }
+const searchUser = async (text) => {
+  try {
+    let data
+    if (!text) {
+      data = await User.find().skip(0).limit(10)
+      return {
+        status: 200,
+        message: 'Get all users success',
+        data: data,
+      }
+    } else {
+      const query = {
+        $or: [
+          { userName: { $regex: text, $options: 'i' } },
+          {
+            $expr: {
+              $regexMatch: {
+                input: { $toString: '$studentCode' },
+                regex: text,
+                options: 'i',
+              },
+            },
+          },
+        ],
+      }
+
+      data = await User.find(query).limit(10)
+    }
+
+    return {
+      status: 200,
+      message: 'Search user success',
+      data: data,
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 export default {
   createAuthor,
@@ -411,4 +452,5 @@ export default {
   getBankAccount,
   rejectAmountRequest,
   getAllUser,
+  searchUser,
 }
