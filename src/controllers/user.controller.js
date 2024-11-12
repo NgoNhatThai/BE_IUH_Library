@@ -1,4 +1,3 @@
-import { get } from 'lodash'
 import userService from '../services/user.service'
 
 const like = async (req, res) => {
@@ -57,8 +56,13 @@ const createUserBookMark = async (req, res) => {
 }
 const updateUserBookMark = async (req, res) => {
   try {
-    const { updateData } = req.body
-    const data = await userService.updateUserBookMark(updateData)
+    const { userId, bookId, chapterId } = req.body
+    if (!userId || !bookId || !chapterId) {
+      return res.status(400).send('Missing params!')
+    }
+    const data = await userService.updateUserBookMark({
+      ...req.body,
+    })
     return res.status(200).json(data)
   } catch (error) {
     return res.status(500).send(error.message)

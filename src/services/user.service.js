@@ -351,9 +351,8 @@ const updateUserBookMark = async (updateData) => {
     const {
       userId,
       bookId,
-      lastReadChapterId,
+      chapterId,
       lastReadChapterIndex,
-      readChapterIds,
       like,
       follow,
       rating,
@@ -370,31 +369,52 @@ const updateUserBookMark = async (updateData) => {
       const newBookMark = await BookMark.create({
         userId: userId,
         bookId: bookId,
-        lastReadChapterId: lastReadChapterId || undefined,
+        lastReadChapterId: chapterId || undefined,
         lastReadChapterIndex: lastReadChapterIndex || undefined,
-        readChapterIds: readChapterIds || undefined,
+        readChapterIds: [chapterId] || undefined,
         like: like || undefined,
         follow: follow || undefined,
         rating: rating || undefined,
         notes: notes || undefined,
         highLights: highLights || undefined,
       })
+
       return {
         status: 200,
         message: 'Create BookMark successfully',
         data: newBookMark,
       }
     } else {
-      if (lastReadChapterId !== undefined)
-        bookMark.lastReadChapterId = lastReadChapterId
-      if (lastReadChapterIndex !== undefined)
+      if (chapterId !== undefined) {
+        bookMark.lastReadChapterId = chapterId
+
+        if (bookMark.readChapterIds.length) {
+          if (!bookMark.readChapterIds.includes(chapterId)) {
+            bookMark.readChapterIds.push(chapterId)
+          }
+        } else {
+          bookMark.readChapterIds = [chapterId]
+        }
+      }
+
+      if (lastReadChapterIndex !== undefined) {
         bookMark.lastReadChapterIndex = lastReadChapterIndex
-      if (readChapterIds !== undefined) bookMark.readChapterIds = readChapterIds
-      if (like !== undefined) bookMark.like = like
-      if (follow !== undefined) bookMark.follow = follow
-      if (rating !== undefined) bookMark.rating = rating
-      if (notes !== undefined) bookMark.notes = notes
-      if (highLights !== undefined) bookMark.highLights = highLights
+      }
+      if (like !== undefined) {
+        bookMark.like = like
+      }
+      if (follow !== undefined) {
+        bookMark.follow = follow
+      }
+      if (rating !== undefined) {
+        bookMark.rating = rating
+      }
+      if (notes !== undefined) {
+        bookMark.notes = notes
+      }
+      if (highLights !== undefined) {
+        bookMark.highLights = highLights
+      }
 
       await bookMark.save()
 
@@ -405,6 +425,7 @@ const updateUserBookMark = async (updateData) => {
       }
     }
   } catch (error) {
+    console.error('Error in updateUserBookMark:', error.message)
     return {
       status: 500,
       message: error.message,
