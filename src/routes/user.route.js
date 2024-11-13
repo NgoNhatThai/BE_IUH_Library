@@ -55,6 +55,9 @@ const IntRoutesUsers = (router) => {
   router
     .route('/get-bought-book')
     .get(userMiddleware.checkJWT, userController.getBoughtBook)
+  router
+    .route('/get-user-read-history')
+    .get(userMiddleware.checkJWT, userController.getUserReadHistory)
   return router
 }
 

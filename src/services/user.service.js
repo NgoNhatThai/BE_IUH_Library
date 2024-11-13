@@ -12,6 +12,7 @@ import Amount from '../config/nosql/models/amount.model'
 import User from '../config/nosql/models/user.model'
 import Book from '../config/nosql/models/book.model'
 import ViewHistory from '../config/nosql/models/view-history.model'
+import { literal } from 'sequelize'
 
 const like = async (userId, bookId) => {
   try {
@@ -52,7 +53,6 @@ const like = async (userId, bookId) => {
 }
 const read = async (userId, bookId, chapterId) => {
   try {
-    // Tìm kiếm đánh giá của cuốn sách
     const review = await Review.findOne({ bookId: bookId })
     if (!review) {
       return {
@@ -61,7 +61,6 @@ const read = async (userId, bookId, chapterId) => {
       }
     }
 
-    // Cập nhật số lượt xem
     review.totalView = (review.totalView || 0) + 1
     try {
       await review.save()
@@ -70,7 +69,6 @@ const read = async (userId, bookId, chapterId) => {
       throw new Error('Error updating review.')
     }
 
-    // Cập nhật lịch sử đọc của người dùng
     let history = await History.findOne({ userId: userId })
     if (!history) {
       history = await History.create({
@@ -85,16 +83,13 @@ const read = async (userId, bookId, chapterId) => {
         lastReadBook: bookId,
       })
     } else {
-      // Kiểm tra xem cuốn sách đã có trong lịch sử chưa
       const existingBookIndex = history.books.findIndex(
         (book) => book.bookId.toString() === bookId.toString()
       )
       if (existingBookIndex > -1) {
-        // Cập nhật thông tin của cuốn sách đã đọc
         history.books[existingBookIndex].lastReadChapterId = chapterId
         history.books[existingBookIndex].lastReadAt = new Date()
       } else {
-        // Thêm sách mới vào lịch sử
         history.books.push({
           bookId: bookId,
           lastReadChapterId: chapterId,
@@ -110,7 +105,6 @@ const read = async (userId, bookId, chapterId) => {
       }
     }
 
-    // Cập nhật lượt xem theo ngày
     const today = new Date()
     today.setHours(0, 0, 0, 0)
     let viewHistoryByDate = await ViewHistory.findOne({
@@ -360,18 +354,15 @@ const updateUserBookMark = async (updateData) => {
       highLights,
     } = updateData
 
-    let bookMark = await BookMark.findOne({
-      userId: userId,
-      bookId: bookId,
-    })
+    let bookMark = await BookMark.findOne({ userId, bookId })
 
     if (!bookMark) {
       const newBookMark = await BookMark.create({
-        userId: userId,
-        bookId: bookId,
+        userId,
+        bookId,
         lastReadChapterId: chapterId || undefined,
         lastReadChapterIndex: lastReadChapterIndex || undefined,
-        readChapterIds: [chapterId] || undefined,
+        readChapterIds: chapterId ? [chapterId] : undefined,
         like: like || undefined,
         follow: follow || undefined,
         rating: rating || undefined,
@@ -388,12 +379,8 @@ const updateUserBookMark = async (updateData) => {
       if (chapterId !== undefined) {
         bookMark.lastReadChapterId = chapterId
 
-        if (bookMark.readChapterIds.length) {
-          if (!bookMark.readChapterIds.includes(chapterId)) {
-            bookMark.readChapterIds.push(chapterId)
-          }
-        } else {
-          bookMark.readChapterIds = [chapterId]
+        if (!bookMark.readChapterIds.includes(chapterId)) {
+          bookMark.readChapterIds.push(chapterId)
         }
       }
 
@@ -417,6 +404,38 @@ const updateUserBookMark = async (updateData) => {
       }
 
       await bookMark.save()
+
+      let history = await History.findOne({ userId })
+      if (!history) {
+        history = await History.create({
+          userId,
+          books: [
+            {
+              bookId,
+              lastReadChapterId: chapterId,
+              lastReadAt: new Date(),
+            },
+          ],
+          lastReadBook: bookId,
+        })
+      } else {
+        const bookInHistory = history.books.find((b) => b.bookId === bookId)
+
+        if (bookInHistory) {
+          bookInHistory.lastReadChapterId = chapterId
+          bookInHistory.lastReadAt = new Date()
+        } else {
+          history.books.push({
+            bookId,
+            lastReadChapterId: chapterId,
+            lastReadAt: new Date(),
+          })
+        }
+
+        history.lastReadBook = bookId
+
+        await history.save()
+      }
 
       return {
         status: 200,
@@ -880,7 +899,6 @@ const buyBook = async (userId, bookId) => {
     }
   }
 }
-
 const getUserAmount = async (userId) => {
   try {
     const userAmount = await Amount.findOne({ userId: userId })
@@ -916,7 +934,6 @@ const getUserAmount = async (userId) => {
     }
   }
 }
-
 const getUserInfo = async (userId) => {
   try {
     const user = await User.findById(userId).populate(['amount', 'historyId'])
@@ -1000,6 +1017,53 @@ const getBoughtBook = async (userId) => {
     }
   }
 }
+const getUserReadHistory = async (userId) => {
+  try {
+    const history = await History.findOne({ userId })
+    if (!history) {
+      return {
+        status: 404,
+        message: 'History not found',
+      }
+    }
+
+    let uniqueBooks = history.books
+      .sort((a, b) => new Date(b.lastReadAt) - new Date(a.lastReadAt))
+      .filter(
+        (book, index, self) =>
+          index === self.findIndex((b) => b.bookId === book.bookId)
+      )
+
+    const readHistory = await Promise.all(
+      uniqueBooks.map(async (book) => {
+        const detail = await Book.findById(book.bookId)
+          .populate('authorId', '_id name')
+          .populate('categoryId', '_id name')
+          .populate('majorId', '_id name')
+          .lean()
+        return {
+          bookId: book.bookId,
+          lastReadChapterId: book.lastReadChapterId,
+          lastReadAt: book.lastReadAt,
+          detail,
+        }
+      })
+    )
+
+    return {
+      status: 200,
+      message: 'Read history retrieved successfully',
+      data: readHistory,
+    }
+  } catch (error) {
+    console.error('Error in getUserReadHistory:', error.message)
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
+
 module.exports = {
   like,
   read,
@@ -1025,4 +1089,5 @@ module.exports = {
   getPendingRequest,
   cancelPendingRequest,
   getBoughtBook,
+  getUserReadHistory,
 }
