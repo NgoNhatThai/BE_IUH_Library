@@ -419,7 +419,9 @@ const updateUserBookMark = async (updateData) => {
           lastReadBook: bookId,
         })
       } else {
-        const bookInHistory = history.books.find((b) => b.bookId === bookId)
+        const bookInHistory = history.books.find(
+          (b) => b.bookId.toString() === bookId.toString()
+        )
 
         if (bookInHistory) {
           bookInHistory.lastReadChapterId = chapterId
