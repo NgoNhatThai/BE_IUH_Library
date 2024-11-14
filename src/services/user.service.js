@@ -901,7 +901,7 @@ const buyBook = async (userId, bookId) => {
     }
   }
 }
-const getUserAmount = async (userId) => {
+const getUserAmount = async (userId, startDate, endDate) => {
   try {
     const userAmount = await Amount.findOne({ userId: userId })
     if (!userAmount) {
@@ -911,15 +911,30 @@ const getUserAmount = async (userId) => {
       }
     }
 
-    userAmount.history.sort((a, b) => b.date - a.date)
+    // Xác định ngày đầu và cuối của tháng nếu startDate và endDate là null
+    const now = new Date()
+    const start = startDate
+      ? new Date(startDate)
+      : new Date(now.getFullYear(), now.getMonth(), 1) // Ngày đầu tháng
+    const end = endDate
+      ? new Date(endDate)
+      : new Date(now.getFullYear(), now.getMonth() + 1, 0) // Ngày cuối tháng
 
-    if (userAmount.history.length) {
-      for (let item of userAmount.history) {
-        if (item.amount < 0 && item.description) {
-          const book = await Book.findById(item.description)
-          if (book) {
-            item.detail = book
-          }
+    // Lọc lịch sử theo khoảng ngày
+    const filteredHistory = userAmount.history.filter((item) => {
+      const itemDate = new Date(item.date) // Chuyển đổi item.date thành Date
+      return itemDate >= start && itemDate <= end
+    })
+
+    // Sắp xếp lại lịch sử đã lọc từ mới đến cũ
+    filteredHistory.sort((a, b) => new Date(b.date) - new Date(a.date))
+
+    // Thêm chi tiết sách nếu có
+    for (let item of filteredHistory) {
+      if (item.amount < 0 && item.description) {
+        const book = await Book.findById(item.description)
+        if (book) {
+          item.detail = book
         }
       }
     }
@@ -927,7 +942,10 @@ const getUserAmount = async (userId) => {
     return {
       status: 200,
       message: 'Get user amount success',
-      data: userAmount,
+      data: {
+        ...userAmount.toObject(),
+        history: filteredHistory, // Thay thế mảng history bằng mảng đã lọc
+      },
     }
   } catch (error) {
     return {
@@ -936,6 +954,7 @@ const getUserAmount = async (userId) => {
     }
   }
 }
+
 const getUserInfo = async (userId) => {
   try {
     const user = await User.findById(userId).populate(['amount', 'historyId'])

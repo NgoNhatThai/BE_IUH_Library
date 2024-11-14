@@ -212,11 +212,11 @@ const buyBook = async (req, res) => {
 }
 const getUserAmount = async (req, res) => {
   try {
-    const { userId } = req.query
+    const { userId, startDate, endDate } = req.query
     if (!userId) {
       return res.status(400).send('User id is required')
     }
-    const data = await userService.getUserAmount(userId)
+    const data = await userService.getUserAmount(userId, startDate, endDate)
     res.status(200).json(data)
   } catch (error) {
     res.status(500).send(error.message)
