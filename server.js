@@ -1,4 +1,3 @@
-import colors from 'colors'
 import app from './app'
 require('dotenv').config()
 import userService from './src/services/user.service'
