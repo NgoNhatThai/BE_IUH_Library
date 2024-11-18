@@ -6,8 +6,10 @@
     "node": ">= 7.6.0"
   },
   "scripts": {
-    "start": "nodemon server.js --exec babel-node",
-    "generate-bg": "node src/config/nosql/seeders/background.seeders.js"
+    "start": "node dist/server.js",
+    "dev": "nodemon server.js --exec babel-node",
+    "generate-bg": "node src/config/nosql/seeders/background.seeders.js",
+    "build": "babel src -d dist --ignore 'src/**/*.test.js,src/**/*.spec.js'"
   },
   "dependencies": {
     "@tensorflow/tfjs-layers": "4.21.0",
