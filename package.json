@@ -9,8 +9,7 @@
     "start": "node dist/server.js",
     "dev": "nodemon server.js --exec babel-node",
     "generate-bg": "node src/config/nosql/seeders/background.seeders.js",
-    "clean": "if exist dist (rmdir /s /q dist)",
-    "build": "yarn clean && babel src --out-dir dist/src --ignore '**/*.test.js,**/*.spec.js' && babel server.js --out-file dist/server.js && babel app.js --out-file dist/app.js && xcopy public dist\\public /E /I /Q"
+    "build": "babel src --out-dir dist/src --ignore '**/*.test.js,**/*.spec.js' && babel server.js --out-file dist/server.js && babel app.js --out-file dist/app.js && xcopy public dist\\public /E /I /Q"
   },
   "dependencies": {
     "@tensorflow/tfjs-layers": "4.21.0",
