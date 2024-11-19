@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "engines": {
-    "node": ">= 7.6.0"
+    "node": "16.20.2"
   },
   "scripts": {
     "start": "node -r @babel/register server.js",
