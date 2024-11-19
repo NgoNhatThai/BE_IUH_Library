@@ -1,7 +1,12 @@
+import colors from 'colors'
 import app from './app'
 require('dotenv').config()
 import userService from './src/services/user.service'
 app.set('port', process.env.PORT || 10000)
+
+console.log('Starting server...')
+console.log('PORT:', app.get('port'))
+console.log('Environment:', process.env.NODE_ENV)
 
 const server = app.listen(app.get('port'), () => {
   console.log(`Express running → PORT ${server.address().port}`.rainbow)
