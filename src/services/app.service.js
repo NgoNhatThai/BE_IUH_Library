@@ -94,7 +94,9 @@ const verifyUser = async (studentCode) => {
   try {
     const userRaw = await User.findOne({
       studentCode: studentCode,
-    }).populate('amount')
+    })
+      .populate('amount')
+      .populate('majorId')
     if (Object.keys(userRaw).length !== 0) {
       delete userRaw.avatar
       let access_token = handleJwt.signJwt(userRaw, secret, expiresIn)
@@ -230,7 +232,7 @@ const changePassword = async (id, oldPassword, newPassword) => {
     if (userDB) {
       let checkPassword = customizeUser.checkPassword(
         oldPassword,
-        userDB.password
+        userDB.password,
       )
       if (checkPassword) {
         userDB.password = hashPassword(newPassword)

@@ -222,7 +222,7 @@ const addMultipleChapters = async (req, res) => {
       return res
         .status(400)
         .send(
-          'Bad request: missing or invalid params contentId, file, chapterTitles, or chapterPaginations'
+          'Bad request: missing or invalid params contentId, file, chapterTitles, or chapterPaginations',
         )
     }
 
@@ -231,7 +231,7 @@ const addMultipleChapters = async (req, res) => {
       file,
       chapterTitles,
       chapterPaginations,
-      status
+      status,
     )
 
     return res.status(200).json(data)
@@ -265,6 +265,18 @@ const addMultiChapterByOutline = async (req, res) => {
     return res.status(500).send(error.message)
   }
 }
+const getBooksByMajor = async (req, res) => {
+  try {
+    const { majorId } = req.query
+    if (!majorId) {
+      return res.status(404).send('Missing params: majorId')
+    }
+    const data = await bookService.getBooksByMajor(majorId)
+    res.status(200).json(data)
+  } catch (error) {
+    res.status(500).send(error.message)
+  }
+}
 
 module.exports = {
   create,
@@ -285,4 +297,5 @@ module.exports = {
   addMultipleChapters,
   deleteChapter,
   addMultiChapterByOutline,
+  getBooksByMajor,
 }

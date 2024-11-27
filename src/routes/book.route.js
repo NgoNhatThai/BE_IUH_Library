@@ -9,7 +9,7 @@ const InitRoutesBook = (router) => {
     .post(
       userMiddleware.checkJWT,
       upload.single('image'),
-      bookController.create
+      bookController.create,
     )
   router.route('/update').put(bookController.update)
   router.route('/remove/:id').delete(bookController.remove)
@@ -18,7 +18,7 @@ const InitRoutesBook = (router) => {
     .post(
       userMiddleware.checkJWT,
       upload.single('file'),
-      bookController.addChapter
+      bookController.addChapter,
     )
   router.route('/get-book-by-id/:id').get(bookController.getBookById)
   router.route('/search').get(bookController.search)
@@ -43,18 +43,19 @@ const InitRoutesBook = (router) => {
     .post(
       userMiddleware.checkJWT,
       upload.single('file'),
-      bookController.addMultipleChapters
+      bookController.addMultipleChapters,
     )
   router
     .route('/add-chapter-by-outline')
     .post(
       userMiddleware.checkJWT,
       upload.single('file'),
-      bookController.addMultiChapterByOutline
+      bookController.addMultiChapterByOutline,
     )
   router
     .route('/delete-chapter')
     .post(userMiddleware.checkJWT, bookController.deleteChapter)
+  router.route('/get-books-by-major').get(bookController.getBooksByMajor)
   return router
 }
 

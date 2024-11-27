@@ -20,7 +20,10 @@ const UserModel = Schema(
       required: true,
     },
     phone: String,
-    majorId: Schema.Types.ObjectId,
+    majorId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Major',
+    },
     memberShip: {
       type: String,
       default: 'NORMAL',
@@ -45,7 +48,7 @@ const UserModel = Schema(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 const User = mongoose.model('User', UserModel)

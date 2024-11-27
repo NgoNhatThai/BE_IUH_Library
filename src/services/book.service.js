@@ -152,7 +152,7 @@ const uploadToCloudinary = async (filePath, resourceType = 'image') => {
         } else {
           resolve(result.secure_url)
         }
-      }
+      },
     )
   })
 }
@@ -199,7 +199,8 @@ const addChapter = async (chapter) => {
       const imageFiles = fs
         .readdirSync(path.dirname(pdfFilePath))
         .filter(
-          (file) => file.startsWith(options.out_prefix) && file.endsWith('.png')
+          (file) =>
+            file.startsWith(options.out_prefix) && file.endsWith('.png'),
         )
 
       for (const imageFile of imageFiles) {
@@ -225,7 +226,7 @@ const addChapter = async (chapter) => {
     const imageFiles = fs
       .readdirSync(path.dirname(pdfFilePath))
       .filter(
-        (file) => file.startsWith(options.out_prefix) && file.endsWith('.png')
+        (file) => file.startsWith(options.out_prefix) && file.endsWith('.png'),
       )
 
     for (const imageFile of imageFiles) {
@@ -289,7 +290,7 @@ const addMultipleChapters = async (
   file,
   chapterTitles,
   chapterPaginations,
-  status
+  status,
 ) => {
   try {
     // Đọc file PDF lớn
@@ -310,7 +311,7 @@ const addMultipleChapters = async (
       // Sao chép các trang từ pdfDoc sang chapterDoc
       const copiedPages = await chapterDoc.copyPages(
         pdfDoc,
-        pages.map((p) => p - 1)
+        pages.map((p) => p - 1),
       )
 
       // Thêm từng trang đã sao chép vào chapterDoc
@@ -353,7 +354,6 @@ const addMultipleChapters = async (
     }
   }
 }
-
 const addMultiChapterByOutline = async (contentId, file) => {
   try {
     // Đọc file PDF
@@ -419,8 +419,8 @@ const addMultiChapterByOutline = async (contentId, file) => {
         pdfDoc,
         Array.from(
           { length: endPage - startPage + 1 },
-          (_, idx) => startPage + idx - 1
-        )
+          (_, idx) => startPage + idx - 1,
+        ),
       )
       copiedPages.forEach((page) => chapterDoc.addPage(page))
 
@@ -966,7 +966,7 @@ const checkPdfContent = async (filePath, contentId) => {
     const outputDir = path.join(__dirname, 'output')
     if (fs.existsSync(outputDir)) {
       fs.readdirSync(outputDir).forEach((file) =>
-        fs.unlinkSync(path.join(outputDir, file))
+        fs.unlinkSync(path.join(outputDir, file)),
       )
     } else {
       // Tạo thư mục nếu chưa tồn tại
@@ -1098,7 +1098,7 @@ const deleteChapter = async (chapterId) => {
         $pull: { chapters: chapterId },
         $inc: { numberOfChapter: -1 },
       },
-      { new: true }
+      { new: true },
     )
 
     if (!contentUpdateResult) {
@@ -1128,6 +1128,35 @@ const deleteChapter = async (chapterId) => {
     }
   }
 }
+const getBooksByMajor = async (majorId) => {
+  try {
+    const books = await Book.find({ active: true, majorId: majorId })
+      .populate('content')
+      .populate('authorId')
+      .populate('categoryId')
+      .populate('majorId')
+      .populate('review')
+      .sort({ createdAt: -1 })
+
+    if (books.length > 0) {
+      return {
+        status: 200,
+        message: 'Get books by major success',
+        data: books,
+      }
+    } else {
+      return {
+        status: 404,
+        message: 'No books found for this major',
+      }
+    }
+  } catch (error) {
+    return {
+      status: 500,
+      message: error.message,
+    }
+  }
+}
 
 module.exports = {
   create,
@@ -1150,4 +1179,5 @@ module.exports = {
   addMultipleChapters,
   deleteChapter,
   addMultiChapterByOutline,
+  getBooksByMajor,
 }
