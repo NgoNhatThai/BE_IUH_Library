@@ -84,7 +84,7 @@ const read = async (userId, bookId, chapterId) => {
       })
     } else {
       const existingBookIndex = history.books.findIndex(
-        (book) => book.bookId.toString() === bookId.toString()
+        (book) => book.bookId.toString() === bookId.toString(),
       )
       if (existingBookIndex > -1) {
         history.books[existingBookIndex].lastReadChapterId = chapterId
@@ -196,7 +196,7 @@ const rate = async (userId, bookId, rating) => {
     } else {
       // Kiểm tra xem cuốn sách đã có trong lịch sử chưa
       const existingBookIndex = history.books.findIndex(
-        (book) => book.bookId.toString() === bookId.toString()
+        (book) => book.bookId.toString() === bookId.toString(),
       )
       if (existingBookIndex > -1) {
         // Cập nhật thông tin của cuốn sách đã đọc
@@ -281,7 +281,7 @@ const comment = async (userId, bookId, comment) => {
     } else {
       // Kiểm tra xem cuốn sách đã có trong lịch sử chưa
       const existingBookIndex = history.books.findIndex(
-        (book) => book.bookId.toString() === bookId.toString()
+        (book) => book.bookId.toString() === bookId.toString(),
       )
       if (existingBookIndex > -1) {
         // Cập nhật thông tin của cuốn sách đã đọc
@@ -420,7 +420,7 @@ const updateUserBookMark = async (updateData) => {
         })
       } else {
         const bookInHistory = history.books.find(
-          (b) => b.bookId.toString() === bookId.toString()
+          (b) => b.bookId.toString() === bookId.toString(),
         )
 
         if (bookInHistory) {
@@ -505,7 +505,7 @@ const follow = async (userId, bookId) => {
       })
     } else {
       const existingBookIndex = history.books.findIndex(
-        (book) => book.bookId.toString() === bookId.toString()
+        (book) => book.bookId.toString() === bookId.toString(),
       )
       if (existingBookIndex > -1) {
         history.books[existingBookIndex].lastReadAt = new Date()
@@ -573,7 +573,7 @@ const getFollowList = async (userId, pageIndex, pageSize) => {
 
     const data = followList.books.slice(
       pageIndex * pageSize,
-      (pageIndex + 1) * pageSize
+      (pageIndex + 1) * pageSize,
     )
 
     return {
@@ -697,7 +697,7 @@ const unFollow = async (userId, bookId) => {
     }
 
     followList.books = followList.books.filter(
-      (book) => book.toString() !== bookId
+      (book) => book.toString() !== bookId,
     )
     const result = await followList.save()
     if (result) {
@@ -1052,7 +1052,7 @@ const getUserReadHistory = async (userId) => {
       .sort((a, b) => new Date(b.lastReadAt) - new Date(a.lastReadAt))
       .filter(
         (book, index, self) =>
-          index === self.findIndex((b) => b.bookId === book.bookId)
+          index === self.findIndex((b) => b.bookId === book.bookId),
       )
 
     const readHistory = await Promise.all(
@@ -1061,6 +1061,7 @@ const getUserReadHistory = async (userId) => {
           .populate('authorId', '_id name')
           .populate('categoryId', '_id name')
           .populate('majorId', '_id name')
+          .populate('review')
           .lean()
         return {
           bookId: book.bookId,
@@ -1068,7 +1069,7 @@ const getUserReadHistory = async (userId) => {
           lastReadAt: book.lastReadAt,
           detail,
         }
-      })
+      }),
     )
 
     return {
