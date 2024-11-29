@@ -553,10 +553,18 @@ const getDetailBookById = async (id) => {
 }
 const getBookType = async (contentId) => {
   try {
-    const content = await Content.findById(contentId)
-    const book = await Book.findById(content.bookId)
-    if (!book) {
+    if (!contentId) {
       return null
+    }
+    const content = await Content.findById(contentId)
+    const book = await Book.findById(content.bookId.toString())
+    if (!book) {
+      const updateBook = await Book.findOne({
+        content: contentId,
+      })
+      content.bookId = updateBook._id
+      await content.save()
+      return updateBook.type
     }
     return book.type
   } catch (error) {
@@ -697,7 +705,9 @@ const getDetailChapterById = async (id) => {
     const allChapters = await Chapter.find({
       contentId: data.contentId,
     })
+    const bookType = await getBookType(data.contentId.toString())
     data.allChapters = allChapters
+    data.bookType = bookType
     return {
       status: 200,
       message: 'Get detail chapter by id success',

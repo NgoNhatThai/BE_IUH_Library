@@ -3,6 +3,7 @@ import Amount from '../config/nosql/models/amount.model'
 import User from '../config/nosql/models/user.model'
 import ViewHistory from '../config/nosql/models/view-history.model'
 import ReadTime from '../config/nosql/models/readtime.model'
+import Book from '../config/nosql/models/book.model'
 
 // Doanh thu theo trạng thái giao dịch
 const getTransactionOverview = async (startDate, endDate, filters) => {
@@ -118,9 +119,8 @@ const getRevenueOverTime = async (startDate, endDate, filters) => {
     const data = daysArray.map((day) => revenueMap[day] || 0) // Nếu không có thì set 0
 
     // Dữ liệu cho bảng
-    const tableData = await AmountRequest.find(matchConditions).populate(
-      'userId'
-    )
+    const tableData =
+      await AmountRequest.find(matchConditions).populate('userId')
 
     return {
       labels,
@@ -162,10 +162,10 @@ const getTopUsersByDepositAmount = async (startDate, endDate, limit) => {
 
     const preLabels = topUsers.map((user) => user._id)
     const users = await User.find({ _id: { $in: preLabels } }).select(
-      'userName'
+      'userName',
     )
     const userMap = new Map(
-      users.map((user) => [user._id.toString(), user.userName])
+      users.map((user) => [user._id.toString(), user.userName]),
     )
 
     const labels = topUsers.map((user) => userMap.get(user._id.toString()))
@@ -512,11 +512,31 @@ const getReadTimeOverviewData = async (startDate, endDate, userId) => {
       date: { $gte: new Date(startDate), $lte: new Date(endDate) },
     }).sort({ date: 1 })
 
+    // Lấy danh sách các bookId từ dữ liệu readTimeData
+    const bookIds = new Set()
+    readTimeData.forEach((record) => {
+      record.detail.forEach((item) => bookIds.add(item.bookId))
+    })
+
+    // Lấy thông tin title của các bookId từ bảng Book
+    const books = await Book.find({ _id: { $in: Array.from(bookIds) } }).select(
+      '_id title',
+    )
+
+    // Tạo một map để dễ dàng tra cứu title theo bookId
+    const bookMap = books.reduce((acc, book) => {
+      acc[book._id.toString()] = book.title
+      return acc
+    }, {})
+
     // Tạo một object map thời gian đọc theo ngày
     const readTimeMap = readTimeData.reduce((acc, record) => {
       acc[record.date.toISOString().split('T')[0]] = {
         totalReadTime: record.totalReadTime,
-        detail: record.detail,
+        detail: record.detail.map((item) => ({
+          ...item.toObject(),
+          title: bookMap[item.bookId.toString()] || 'Unknown Title', // Thêm trường title
+        })),
       }
       return acc
     }, {})
@@ -590,7 +610,7 @@ const updateReadTime = async (userId, bookId, date, time) => {
     } else {
       readTime.totalReadTime += time
       const bookDetail = readTime.detail.find(
-        (item) => item.bookId.toString() === bookId.toString()
+        (item) => item.bookId.toString() === bookId.toString(),
       )
       if (bookDetail) {
         bookDetail.readTime += time
