@@ -1070,7 +1070,7 @@ const checkPdfContent = async (filePath, contentId) => {
       throw new Error('Content ID không tồn tại!')
     }
 
-    const book = await Book.findOne({ _id: content.bookId })
+    const book = await Book.findOne({ content: content._id })
     if (!book) {
       throw new Error('Book ID không tồn tại!')
     }
