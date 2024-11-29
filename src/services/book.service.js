@@ -556,16 +556,7 @@ const getBookType = async (contentId) => {
     if (!contentId) {
       return null
     }
-    const content = await Content.findById(contentId)
-    const book = await Book.findById(content.bookId.toString())
-    if (!book) {
-      const updateBook = await Book.findOne({
-        content: contentId,
-      })
-      content.bookId = updateBook._id
-      await content.save()
-      return updateBook.type
-    }
+    const book = await Book.findOne({ content: contentId })
     return book.type
   } catch (error) {
     return null
