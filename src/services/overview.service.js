@@ -4,6 +4,7 @@ import User from '../config/nosql/models/user.model'
 import ViewHistory from '../config/nosql/models/view-history.model'
 import ReadTime from '../config/nosql/models/readtime.model'
 import Book from '../config/nosql/models/book.model'
+import mongoose from 'mongoose'
 
 // Doanh thu theo trạng thái giao dịch
 const getTransactionOverview = async (startDate, endDate, filters) => {
@@ -87,7 +88,7 @@ const getRevenueOverTime = async (startDate, endDate, filters) => {
       date: { $gte: new Date(startDate), $lte: new Date(endDate) },
     }
 
-    if (userId) matchConditions.userId = userId
+    if (userId) matchConditions.userId = new mongoose.Types.ObjectId(userId)
     if (bankConfigId) matchConditions.bankConfigId = bankConfigId
     if (minAmount !== undefined || maxAmount !== undefined) {
       matchConditions.amount = {}
@@ -101,11 +102,11 @@ const getRevenueOverTime = async (startDate, endDate, filters) => {
       },
       {
         $group: {
-          _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } }, // Nhóm theo ngày cụ thể
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$date' } },
           totalAmount: { $sum: '$amount' },
         },
       },
-      { $sort: { _id: 1 } }, // Sắp xếp theo ngày
+      { $sort: { _id: 1 } },
     ])
 
     // Tạo một object map doanh thu theo ngày
@@ -116,8 +117,7 @@ const getRevenueOverTime = async (startDate, endDate, filters) => {
 
     // Đảm bảo mỗi ngày đều có một cột, nếu không có dữ liệu thì set giá trị 0
     const labels = daysArray
-    const data = daysArray.map((day) => revenueMap[day] || 0) // Nếu không có thì set 0
-
+    const data = daysArray.map((day) => revenueMap[day] || 0)
     // Dữ liệu cho bảng
     const tableData =
       await AmountRequest.find(matchConditions).populate('userId')
