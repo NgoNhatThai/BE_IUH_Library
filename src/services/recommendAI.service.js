@@ -35,9 +35,9 @@ const preprocessHistory = async (history) => {
     for (let book of history.books) {
       const bookData = await Book.findById(book.bookId) // Lấy thông tin chi tiết về sách
 
-      const descriptionVector = processTextToVector(bookData.desc)
-      const categoryVector = processTextToVector(bookData.categoryId)
-      const authorVector = processTextToVector(bookData.authorId)
+      const descriptionVector = processTextToVector(bookData.desc || '')
+      const categoryVector = processTextToVector(bookData.categoryId || '')
+      const authorVector = processTextToVector(bookData.authorId || '')
 
       const combinedFeatures = [
         ...descriptionVector,
@@ -65,7 +65,7 @@ const filterUnreadBooks = (books, userHistory) => {
 
     // Lọc sách chưa đọc bằng cách so sánh với chuỗi
     const unreadBooks = books.filter(
-      (book) => !readBookIds.includes(book.toString())
+      (book) => !readBookIds.includes(book.toString()),
     )
 
     return unreadBooks
@@ -100,9 +100,8 @@ const suggestBooks = async (userId) => {
     const predictionsArray = await predictions.array()
 
     // Giải mã các dự đoán thành danh sách ID sách được đề xuất
-    const recommendedBooks = await suggestBooksBasedOnPredictions(
-      predictionsArray
-    )
+    const recommendedBooks =
+      await suggestBooksBasedOnPredictions(predictionsArray)
 
     const suggestionIds = filterUnreadBooks(recommendedBooks, userHistory)
 
@@ -116,7 +115,7 @@ const suggestBooks = async (userId) => {
           { path: 'review' },
         ])
         return book
-      })
+      }),
     )
 
     return books
@@ -165,7 +164,7 @@ const prepareAllBookVectors = async () => {
 const cosineSimilarity = (vecA, vecB) => {
   const dotProduct = vecA.reduce(
     (sum, value, index) => sum + value * vecB[index],
-    0
+    0,
   )
   const magnitudeA = Math.sqrt(vecA.reduce((sum, value) => sum + value ** 2, 0))
   const magnitudeB = Math.sqrt(vecB.reduce((sum, value) => sum + value ** 2, 0))

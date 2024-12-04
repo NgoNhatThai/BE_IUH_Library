@@ -915,10 +915,10 @@ const getUserAmount = async (userId, startDate, endDate) => {
     const now = new Date()
     const start = startDate
       ? new Date(startDate)
-      : new Date(now.getFullYear(), now.getMonth(), 1) // Ngày đầu tháng
+      : new Date(now.getFullYear(), now.getMonth(), 1)
     const end = endDate
       ? new Date(endDate)
-      : new Date(now.getFullYear(), now.getMonth() + 1, 0) // Ngày cuối tháng
+      : new Date(now.getFullYear(), now.getMonth() + 1, 0)
 
     // Lọc lịch sử theo khoảng ngày
     const filteredHistory = userAmount.history.filter((item) => {
@@ -944,7 +944,7 @@ const getUserAmount = async (userId, startDate, endDate) => {
       message: 'Get user amount success',
       data: {
         ...userAmount.toObject(),
-        history: filteredHistory, // Thay thế mảng history bằng mảng đã lọc
+        history: filteredHistory,
       },
     }
   } catch (error) {
