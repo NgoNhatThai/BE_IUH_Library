@@ -24,13 +24,14 @@ app.use(function (req, res, next) {
     'http://localhost:19006',
     'http://localhost:8080',
     'https://be-iuh-library.vercel.app/',
+    'http://localhost:3000',
     '*',
   ]
   const origin = req.headers.origin
 
   res.setHeader(
     'Access-Control-Allow-Headers',
-    'Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Authorization'
+    'Access-Control-Allow-Headers, Origin,Accept, X-Requested-With, Content-Type, Access-Control-Request-Method, Access-Control-Request-Headers, Authorization',
   )
 
   if (allowedOrigins.includes(origin)) {
@@ -38,7 +39,7 @@ app.use(function (req, res, next) {
   }
   res.setHeader(
     'Access-Control-Allow-Methods',
-    'GET, POST, OPTIONS, PUT, PATCH, DELETE'
+    'GET, POST, OPTIONS, PUT, PATCH, DELETE',
   )
   res.setHeader('Access-Control-Allow-Credentials', 'true')
   next()
