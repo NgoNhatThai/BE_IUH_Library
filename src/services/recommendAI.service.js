@@ -118,7 +118,7 @@ const suggestBooks = async (userId) => {
       }),
     )
 
-    books = books.slice(0, 5)
+    books = books.slice(0, 7)
 
     return books
   } catch (error) {
