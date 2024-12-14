@@ -118,6 +118,8 @@ const suggestBooks = async (userId) => {
       }),
     )
 
+    books = books.slice(0, 5)
+
     return books
   } catch (error) {
     console.error('Error suggesting books:', error.message)

@@ -41,7 +41,7 @@ async function fetchTrainingData() {
   await connectMongoDB()
 
   const histories = await History.find().populate(
-    'books lastReadBook like follow rating.bookId comment'
+    'books lastReadBook like follow rating.bookId comment',
   )
   let trainingData = []
   console.log('Lấy dữ liệu lịch sử từ MongoDB thành công')
@@ -93,7 +93,7 @@ function processTextToVector(text) {
 async function loadModel() {
   try {
     const model = await tf.loadLayersModel(
-      'file://./models/recommendation-model/model.json'
+      'file://./models/recommendation-model/model.json',
     )
     console.log('Mô hình đã được tải thành công.')
     return model
@@ -112,7 +112,7 @@ function createModel(inputShape) {
       inputShape: [inputShape],
       units: 128,
       activation: 'relu',
-    })
+    }),
   )
   model.add(tf.layers.dense({ units: 64, activation: 'relu' }))
   model.add(tf.layers.dense({ units: 32, activation: 'relu' }))
@@ -163,11 +163,7 @@ async function trainModel() {
   }
 
   // Kiểm tra dữ liệu inputFeatures và labels
-  console.log('inputFeatures:', inputFeatures)
-  console.log('inputFeatures length:', inputFeatures.length)
-  console.log('inputFeatures[0] length:', inputFeatures[0]?.length)
-  console.log('labels:', labels)
-  console.log('labels length:', labels.length)
+  console.log('Số lượng mẫu huấn luyện: Đủ')
 
   if (inputFeatures.length === 0 || labels.length === 0) {
     console.error('Không có dữ liệu để huấn luyện mô hình.')
