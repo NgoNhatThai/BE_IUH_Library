@@ -699,8 +699,6 @@ const getDetailChapterById = async (id) => {
       }
     }
 
-    const allChapters = await Chapter.find({ contentId: data.contentId })
-
     const bookType = await getBookType(data.contentId.toString())
 
     data.allChapters = allChapters
@@ -729,6 +727,9 @@ const getDetailChapterById = async (id) => {
       data.bookId = content.bookId
       await data.save()
     }
+
+    const allChapters = await Chapter.find({ contentId: data.contentId })
+    data.allChapters = allChapters
 
     return {
       status: 200,

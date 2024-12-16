@@ -13,6 +13,7 @@ const ChapterModel = Schema(
     numberOfPage: Number,
     postDate: Date,
     updateDate: Date,
+    allChapters: [],
     comments: [
       {
         type: Schema.Types.ObjectId,
