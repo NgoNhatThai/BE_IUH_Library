@@ -687,22 +687,53 @@ const getTopViewedBooks = async () => {
 }
 const getDetailChapterById = async (id) => {
   try {
-    const data = await Chapter.findById(id)
-      .populate({
-        path: 'comments',
-        populate: 'user',
-      })
-      .lean()
-    const allChapters = await Chapter.find({
-      contentId: data.contentId,
+    const data = await Chapter.findById(id).populate({
+      path: 'comments',
+      populate: 'user',
     })
+
+    if (!data) {
+      return {
+        status: 404,
+        message: 'Chapter not found',
+      }
+    }
+
+    const allChapters = await Chapter.find({ contentId: data.contentId })
+
     const bookType = await getBookType(data.contentId.toString())
+
     data.allChapters = allChapters
     data.bookType = bookType
+
+    const content = await Content.findById(data.contentId)
+    if (!content) {
+      return {
+        status: 404,
+        message: 'Content not found',
+      }
+    }
+
+    if (!content.bookId) {
+      const book = await Book.findOne({ content: content._id })
+      if (book) {
+        content.bookId = book._id
+        await content.save()
+        data.bookId = book._id
+      }
+    } else {
+      data.bookId = content.bookId
+    }
+
+    if (!data.bookId) {
+      data.bookId = content.bookId
+      await data.save()
+    }
+
     return {
       status: 200,
       message: 'Get detail chapter by id success',
-      data: data,
+      data,
     }
   } catch (error) {
     return {
@@ -711,6 +742,7 @@ const getDetailChapterById = async (id) => {
     }
   }
 }
+
 const getRelatedBooks = async (id) => {
   try {
     const book = await Book.findById(id)

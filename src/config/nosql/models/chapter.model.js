@@ -4,6 +4,7 @@ const { Schema } = mongoose
 const ChapterModel = Schema(
   {
     bookId: Schema.Types.ObjectId,
+    bookType: String,
     contentId: Schema.Types.ObjectId,
     title: String,
     text: [String],
@@ -26,7 +27,7 @@ const ChapterModel = Schema(
   },
   {
     timestamps: true,
-  }
+  },
 )
 
 const Chapter = mongoose.model('Chapter', ChapterModel)
