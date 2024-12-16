@@ -354,9 +354,11 @@ const updateUserBookMark = async (updateData) => {
       highLights,
     } = updateData
 
+    // Tìm BookMark theo userId và bookId
     let bookMark = await BookMark.findOne({ userId, bookId })
 
     if (!bookMark) {
+      // Nếu chưa tồn tại, tạo mới BookMark
       const newBookMark = await BookMark.create({
         userId,
         bookId,
@@ -376,11 +378,15 @@ const updateUserBookMark = async (updateData) => {
         data: newBookMark,
       }
     } else {
+      // Nếu đã tồn tại, cập nhật thông tin
       if (chapterId !== undefined) {
         bookMark.lastReadChapterId = chapterId
 
-        if (!bookMark.readChapterIds.includes(chapterId)) {
-          bookMark.readChapterIds.push(chapterId)
+        // Đảm bảo không thêm giá trị trùng lặp vào readChapterIds
+        if (chapterId) {
+          bookMark.readChapterIds = [
+            ...new Set([...bookMark.readChapterIds, chapterId]),
+          ]
         }
       }
 
@@ -403,10 +409,13 @@ const updateUserBookMark = async (updateData) => {
         bookMark.highLights = highLights
       }
 
+      // Lưu các thay đổi vào BookMark
       await bookMark.save()
 
+      // Cập nhật hoặc tạo lịch sử đọc (History)
       let history = await History.findOne({ userId })
       if (!history) {
+        // Nếu chưa có lịch sử, tạo mới
         history = await History.create({
           userId,
           books: [
@@ -419,14 +428,17 @@ const updateUserBookMark = async (updateData) => {
           lastReadBook: bookId,
         })
       } else {
+        // Nếu đã có lịch sử, cập nhật thông tin sách
         const bookInHistory = history.books.find(
           (b) => b.bookId.toString() === bookId.toString(),
         )
 
         if (bookInHistory) {
+          // Nếu sách đã có trong lịch sử, cập nhật chương cuối cùng đã đọc
           bookInHistory.lastReadChapterId = chapterId
           bookInHistory.lastReadAt = new Date()
         } else {
+          // Nếu chưa có sách, thêm mới vào lịch sử
           history.books.push({
             bookId,
             lastReadChapterId: chapterId,
@@ -434,8 +446,10 @@ const updateUserBookMark = async (updateData) => {
           })
         }
 
+        // Cập nhật sách cuối cùng được đọc
         history.lastReadBook = bookId
 
+        // Lưu các thay đổi vào History
         await history.save()
       }
 
@@ -453,6 +467,7 @@ const updateUserBookMark = async (updateData) => {
     }
   }
 }
+
 const getUserBookMark = async (userId, bookId) => {
   try {
     const bookMark = await BookMark.findOne({
@@ -954,7 +969,6 @@ const getUserAmount = async (userId, startDate, endDate) => {
     }
   }
 }
-
 const getUserInfo = async (userId) => {
   try {
     const user = await User.findById(userId).populate(['amount', 'historyId'])
@@ -1048,12 +1062,15 @@ const getUserReadHistory = async (userId) => {
       }
     }
 
-    let uniqueBooks = history.books
+    // Sử dụng Set để loại bỏ bookId trùng lặp
+    const seenBookIds = new Set()
+    const uniqueBooks = history.books
       .sort((a, b) => new Date(b.lastReadAt) - new Date(a.lastReadAt))
-      .filter(
-        (book, index, self) =>
-          index === self.findIndex((b) => b.bookId === book.bookId),
-      )
+      .filter((book) => {
+        const isDuplicate = seenBookIds.has(book.bookId.toString())
+        seenBookIds.add(book.bookId.toString())
+        return !isDuplicate
+      })
 
     const readHistory = await Promise.all(
       uniqueBooks.map(async (book) => {
